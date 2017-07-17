@@ -14,6 +14,14 @@ public class Line<P extends Point> {
     private double exsy;
     private  double length;
     
+    public P getStart() {
+    	return start;
+    }
+    
+    public P getEnd() {
+    	return end;
+    }
+    
     public Line(P start, P end) {
         this.start = start;
         this.end = end;

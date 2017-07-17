@@ -7,6 +7,8 @@ import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,7 +58,7 @@ public class IterativeSeriesReducerTest {
 
     @Test(dataProvider="series")
     public void shouldReduceSeries(List<Point> inputSeries, double epsilon, List<Point> expectedResult) {
-        List<Point> reducedSeries = SeriesReducer.reduce(inputSeries, epsilon);
+        List<Point> reducedSeries = IterativeSeriesReducer.reduce(inputSeries, epsilon);
         Assert.assertEquals(reducedSeries, expectedResult);
     }
     
@@ -67,7 +69,7 @@ public class IterativeSeriesReducerTest {
     
     @Test(dataProvider="invalidEpsilon", expectedExceptions=IllegalArgumentException.class)
     public void shouldValidateEpsilon(double invalidEpsilon) {
-        SeriesReducer.reduce(asList(p(1, 1), p(2, 2), p(3, 3)), invalidEpsilon);
+        IterativeSeriesReducer.reduce(asList(p(1, 1), p(2, 2), p(3, 3)), invalidEpsilon);
     }
     
     @DataProvider(name="automaticEpsilon")
@@ -108,10 +110,10 @@ public class IterativeSeriesReducerTest {
         double avgDev = EpsilonHelper.avg(deviations);
         
         System.out.println("---------- " + points.getName() + " ----------");
-        List<Point> reduced1 = SeriesReducer.reduce(points, maxDev);
+        List<Point> reduced1 = IterativeSeriesReducer.reduce(points, maxDev);
         System.out.println("maxDev = " + maxDev + " => " + reduced1.size() + " / " + points.size());
         
-        List<Point> reduced2 = SeriesReducer.reduce(points, avgDev);
+        List<Point> reduced2 = IterativeSeriesReducer.reduce(points, avgDev);
         System.out.println("avgDev = " + avgDev +" => " + reduced2.size() + " / " + points.size());
     }
     
@@ -129,9 +131,10 @@ public class IterativeSeriesReducerTest {
     
     @Test
     public void openFile() {
-    	List<Point> points= create(600);
+    	List<Point> points= create(900);
     	List<DrawSeries> seriesseries = new ArrayList<IterativeSeriesReducerTest.DrawSeries>();
-    	seriesseries.add(new DrawSeries("test", points));
+    	seriesseries.add(new DrawSeries("reduced", SeriesReducer.reduce(points, 100)));
+    	seriesseries.add(new DrawSeries("testoriginal", points));
     	createChart(seriesseries, "title", "x", "y");
     }
     
@@ -141,19 +144,31 @@ public class IterativeSeriesReducerTest {
     	    	
     	public DrawSeries(String title, List<Point> points) {
     		this.points = points;
-    		this.title = title;
+    		this.title = title + "\t n=" + points.size();
     	}
     }
     
     public String createChart(List<DrawSeries> drawseries, String title, String xLabel , String yLabel) {
     	XYSeriesCollection dataset = new XYSeriesCollection();
-    	for (DrawSeries drawSeries : drawseries) {
-    		XYSeries series = new XYSeries(drawSeries.title);
+    	drawseries.sort(new Comparator<DrawSeries>() {
+    		public int compare(DrawSeries o1, DrawSeries o2) {
+    			if(o1.points.size() == o2.points.size()) {
+    				return 0;
+    			} else if(o1.points.size() > o2.points.size()){
+    				return 1;
+    			}
+    			return -1;
+    		};
+    	});
+    	for (Iterator iterator = drawseries.iterator(); iterator.hasNext();) {
+			DrawSeries drawSeries = (DrawSeries) iterator.next();
+			XYSeries series = new XYSeries(drawSeries.title);
 			for (Point p : drawSeries.points) {
 				series.add(p.getX(),p.getY());
 			}
 			dataset.addSeries(series);
 		}
+    	
     	
         JFreeChart chart = ChartFactory.createXYLineChart(title,
                 xLabel, yLabel, dataset);
