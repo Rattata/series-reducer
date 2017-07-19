@@ -54,7 +54,7 @@ public class IterativeSeriesReducer {
 	// return line.asList();
 	// }
 	// }
-
+	
 	/**
 	 * Reduces number of points in given series using Ramer-Douglas-Peucker
 	 * algorithm.
