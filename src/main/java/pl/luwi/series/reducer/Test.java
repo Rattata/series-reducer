@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 
 public class Test {
 
-	private static final int iterations = 32;
+	private static final int iterations = 64;
 	private static final int retrials = 40;
 	public static int[] threadSequence = new int[] { 1, 2, 3, 4, 5 };
 	public static int[] sizes;
@@ -31,7 +31,7 @@ public class Test {
 			// threadsequence, sizes, iterations
 			sizes = new int[iterations];
 			for (int i = 0; i < sizes.length; i++) {
-				sizes[i] = (int) 453125 * (i + 1);
+				sizes[i] = (int) 225000 * (i + 1);
 			}
 
 			Long[][][] results = new Long[sizes.length][][];
