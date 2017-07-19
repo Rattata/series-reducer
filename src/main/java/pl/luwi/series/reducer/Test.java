@@ -14,69 +14,90 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public class Test {
 
-	private static final int iterations = 20;
-	private static final int retrials = 30;
+	private static final int iterations = 32;
+	private static final int retrials = 40;
+	public static int[] threadSequence = new int[] { 1, 2, 3, 4, 5 };
+	public static int[] sizes;
 
 	public static void main(String[] args) {
-		Test test = new Test();
-
-		int[] threadSequence = new int[] { 1, 2, 3, 4, 5, 6, 7, 8,9,10,11,12 };
-		Long[][] results = new Long[iterations * retrials][];
-		for (int i = 0; i < iterations; i++) {
-			int testSize = (int) Math.pow(2, i + 7);
-			for(int j = 0 ; j < retrials; j++){
-				results[i* retrials + j] = test.runTest(test.getTestArray(testSize), threadSequence);
-				System.gc();
-			}
-		}
-
-		String[] columns = new String[] { "size", "1", "2", "3", "4", "5", "6", "7", "8","9", "10", "11", "12" };
 		try {
-			writecsv(results, columns);	
+			Test test = new Test();
+
+			// threadsequence, sizes, iterations
+			sizes = new int[iterations];
+			for (int i = 0; i < sizes.length; i++) {
+				sizes[i] = (int) 453125 * (i + 1);
+			}
+
+			Long[][][] results = new Long[sizes.length][][];
+
+			for (int j = sizes.length - 1; j >= 0; j--) {
+				System.gc();
+				results[j] = new Long[threadSequence.length][];
+				PointImpl[] testset = test.getTestArray(sizes[j]);
+
+				for (int i = 0; i < threadSequence.length; i++) {
+
+					results[j][i] = test.runTest(testset, threadSequence[i], retrials);
+					
+					Thread.sleep(1);
+
+				}
+			}
+
+			writecsv(results);
+
 		} catch (Exception e) {
+			e.printStackTrace();
 			// TODO: handle exception
 		}
 	}
-	
-	public static void writecsv(Long[][] matrix, String[] columnnames) throws IOException{
+
+	public static void writecsv(Long[][][] matrix) throws IOException {
 		File file = File.createTempFile(UUID.randomUUID().toString(), ".csv");
-		
+
 		FileWriter writer = new FileWriter(file);
-		writer.append(String.join(",", columnnames) + "\n");
-		
+
 		for (int j = 0; j < matrix.length; j++) {
-			List<String> strings = Arrays.asList(matrix[j]).stream().map((x) -> String.valueOf(x)).collect(Collectors.toList());
-			writer.append(String.join(",", strings) + "\n");
+			for (int i = 0; i < matrix[j].length; i++) {
+				for (Long longs : matrix[j][i]) {
+					writer.append(String.valueOf(sizes[j]) + ",");
+					writer.append(String.valueOf(threadSequence[i]) + ",");
+					writer.append(String.valueOf(longs) + "\n");
+				}
+			}
 		}
 		writer.close();
 		System.out.println(file.getAbsolutePath());
 		Desktop dt = Desktop.getDesktop();
-//		dt.open(file);
+		dt.open(file);
 	}
 
 	/**
 	 * 
 	 * @return timings in ns
 	 */
-	public Long[] runTest(int[] testset, int[] threadsequence) {
+	public Long[] runTest(PointImpl[] testset, int threads, int interations) {
 		try {
 			ArrayList<Long> timingresults = new ArrayList<>();
-			timingresults.add((long) testset.length);
-			for (int i : threadsequence) {
+			for (int i = 0; i < iterations; i++) {
 				long timing;
-				if (i == 1) {
+				if (threads == 1) {
 					timing = sequentialTest(testset);
 				} else {
-					timing = concurrentTest(testset, i);
+					timing = concurrentTest(testset, threads);
 				}
 				timingresults.add(timing);
 			}
 			Long[] results = new Long[timingresults.size()];
 			timingresults.toArray(results);
+			String values = String.join(",",
+					timingresults.stream().map(x -> String.valueOf(x)).collect(Collectors.toList()));
 			return results;
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -85,11 +106,11 @@ public class Test {
 		}
 	}
 
-	public int[] getTestArray(int number) {
-		int[] array = new int[number];
+	public PointImpl[] getTestArray(int number) {
+		PointImpl[] array = new PointImpl[number];
 		Random r = new Random();
-		for (int i : array) {
-			i = r.nextInt();
+		for (int i = 0; i < array.length ; i++) {
+			array[i] = new PointImpl(r.nextDouble(), r.nextDouble());
 		}
 		return array;
 	};
@@ -107,12 +128,12 @@ public class Test {
 	private class FindMaximumTask implements Runnable {
 		int startIndex;
 		int endIndex;
-		int[] array;
+		PointImpl[] testset;
 		int currentBest = Integer.MIN_VALUE;
 		int currentBestIndex;
 
-		public FindMaximumTask(int[] array, int startIndex, int endIndex) {
-			this.array = array;
+		public FindMaximumTask(PointImpl[] testset, int startIndex, int endIndex) {
+			this.testset = testset;
 			this.startIndex = startIndex;
 			this.endIndex = endIndex;
 		}
@@ -120,9 +141,14 @@ public class Test {
 		@Override
 		public void run() {
 			// start count
-			for (int i = startIndex; i <= endIndex; i++) {
+
+			Line<PointImpl> line = new Line<PointImpl>(testset[startIndex], testset[endIndex]);
+			double currentBest = Double.MIN_VALUE;
+			int currentBestIndex;
+			// start count
+			for (int i = startIndex + 1; i <= endIndex - 1; i++) {
 				if (i > currentBest) {
-					currentBest = array[i];
+					currentBest = line.distance(testset[i]);
 					currentBestIndex = i;
 				}
 			}
@@ -135,7 +161,7 @@ public class Test {
 
 	}
 
-	private long concurrentTest(int[] testset, int threads) throws InterruptedException {
+	private long concurrentTest(PointImpl[] testset, int threads) throws InterruptedException {
 		// System.out.println("Created threadpool with " + threads + "
 		// threads");
 		long startDt = System.nanoTime();
@@ -159,14 +185,16 @@ public class Test {
 		return result;
 	}
 
-	private long sequentialTest(int[] testset) {
+	
+	private long sequentialTest(PointImpl[] testset) {
 		long startDt = System.nanoTime();
-		int currentBest = Integer.MIN_VALUE;
+		Line<PointImpl> line = new Line<PointImpl>(testset[0], testset[testset.length -1]);
+		double currentBest = Double.MIN_VALUE;
 		int currentBestIndex;
 		// start count
-		for (int i = 0; i < testset.length; i++) {
+		for (int i = 1; i < testset.length - 1; i++) {
 			if (i > currentBest) {
-				currentBest = testset[i];
+				currentBest = line.distance(testset[i]);
 				currentBestIndex = i;
 			}
 		}
