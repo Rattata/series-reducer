@@ -24,12 +24,22 @@ public class Line<P extends Point> {
         length = Math.sqrt(dx*dx + dy*dy);
     }
     
+    public Line(Line<P> l) {
+    	this.start = l.start;
+        this.end = l.end;
+        this.dx = l.dx;
+        this.dy = l.dy;
+        this.sxey = l.sxey;
+        this.exsy = l.exsy;
+        this.length = l.length;
+    }
+    
     @SuppressWarnings("unchecked")
     public List<P> asList() {
         return Arrays.asList(start, end);
     }
     
-    double distance(P p) {
+    public double distance(Point p) {
         return Math.abs(dy * p.getX() - dx * p.getY() + sxey - exsy) / length;
     }
 }
