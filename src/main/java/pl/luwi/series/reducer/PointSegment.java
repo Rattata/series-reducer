@@ -1,10 +1,17 @@
 package pl.luwi.series.reducer;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class PointSegment<N extends Point> extends Line<OrderedPoint<N>>{
+public class PointSegment<N extends Point> extends Line<OrderedPoint<N>> implements Serializable{
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	
 	
 	public List<OrderedPoint<N>> points;
 	public List<N> originalpoints;
