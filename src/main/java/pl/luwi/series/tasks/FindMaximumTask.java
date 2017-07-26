@@ -22,7 +22,7 @@ public class FindMaximumTask<P extends Point> implements Callable<Void>,Comparab
 	int endIndex;
 	
 	public double bestDistance = Double.MIN_VALUE;
-	public OrderedPoint<P> best = null;
+	public int bestIndex = -1;
 	
 	public FindMaximumTask(ExecutorService service, PointSegment<P> pointsegment, int startIndex, int endIndex) {
 		super();
@@ -37,15 +37,15 @@ public class FindMaximumTask<P extends Point> implements Callable<Void>,Comparab
 		this(null, pointsegment, startIndex, endIndex);
 	}
 	
-	public OrderedPoint<P> getMax(){
+	public int getMax(){
 		for(int i = startIndex; i <= endIndex; i++) {
 			double dist = segment.distance(segment.points.get(i));
 			if(dist > bestDistance) {
 				bestDistance = dist;
-				best = segment.points.get(i);
+				bestIndex = i;
 			}
 		}
-		return best;
+		return bestIndex;
 	}
 
 	@Override
@@ -62,7 +62,6 @@ public class FindMaximumTask<P extends Point> implements Callable<Void>,Comparab
 	public Void call() throws Exception {
 		if(segment.points.size() < CONCURRENCY_THRESHOLD || service == null) {
 			getMax();
-			System.out.println(best);
 		} else {
 			float delta = segment.points.size() / CORES;
 			List<FindMaximumTask<P>> subtasks = new ArrayList<>();
@@ -76,11 +75,11 @@ public class FindMaximumTask<P extends Point> implements Callable<Void>,Comparab
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			best = subtasks.stream().max(new Comparator<FindMaximumTask<P>>() {
+			bestIndex = subtasks.stream().max(new Comparator<FindMaximumTask<P>>() {
 				public int compare(pl.luwi.series.tasks.FindMaximumTask<P> o1, pl.luwi.series.tasks.FindMaximumTask<P> o2) {
 					return o1.compareTo(o2);
 				};
-			}).get().best;
+			}).get().bestIndex;
 		}
 		return null;
 	}

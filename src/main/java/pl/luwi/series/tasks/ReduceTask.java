@@ -40,12 +40,11 @@ public class ReduceTask<P extends Point> implements Callable<Void>,Prioritized {
 			
 			if(findMaximum.bestDistance > epsilon) {
 				List<ReduceTask<P>> subtasks  = new ArrayList<>();
-				for(PointSegment<P> newsegment : segment.split(segment, findMaximum.best.getIndex())){
+				for(PointSegment<P> newsegment : segment.split(findMaximum.bestIndex)){
 					ReduceTask<P> subtask = new ReduceTask<P>(newsegment, executor, result, epsilon);
 					subtasks.add(subtask);
 				}
 				executor.invokeAll(subtasks);
-				System.out.println(result);
 				
 			} else {
 				for (OrderedPoint<P> orderedPoint : segment.asList()) {

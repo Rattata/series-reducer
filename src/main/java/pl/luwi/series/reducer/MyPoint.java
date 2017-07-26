@@ -9,8 +9,8 @@ public class MyPoint implements Point {
 	
 	public MyPoint() {
 		Random r = new Random();
-		X = (double)2000* r.nextFloat();
-		Y = (double)2000* r.nextFloat();
+		X = (double)100* r.nextFloat();
+		Y = (double)100* r.nextFloat();
 	}
 	@Override
 	public double getX() {
@@ -22,6 +22,12 @@ public class MyPoint implements Point {
 	public double getY() {
 		// TODO Auto-generated method stub
 		return Y;
+	}
+	
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return "["+X+","+Y+"]";
 	}
 	
 }

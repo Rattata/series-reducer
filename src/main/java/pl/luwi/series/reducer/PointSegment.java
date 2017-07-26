@@ -25,19 +25,22 @@ public class PointSegment<N extends Point> extends Line<OrderedPoint<N>> impleme
 		originalpoints = points;
 	};
 	
-	public PointSegment(List<OrderedPoint<N>> points, Line<OrderedPoint<N>> line) {
-		super(line);
+	public PointSegment(List<OrderedPoint<N>> points, OrderedPoint<N> start, OrderedPoint<N> end) {
+		super(start, end);
 		this.points = points;
 	}
 	
-	public List<PointSegment< N>> split(PointSegment<N> segment,  int index){
+	public List<PointSegment< N>> split( int index){
 		
 		List<PointSegment<N>> subsegments = new ArrayList<PointSegment< N>>(2);
+		OrderedPoint<N> start = points.get(0); 
+		OrderedPoint<N> middle = points.get(index);
+		OrderedPoint<N> end = points.get(points.size() -1);
 		
-		PointSegment<N> split1 = new PointSegment<N>(originalpoints.subList(0, index +1 ));
+		PointSegment<N> split1 = new PointSegment<N>(points.subList(0, index +1 ), start, middle);
 		subsegments.add(split1);
 		
-		PointSegment<N> split2 = new PointSegment< N>(originalpoints.subList(index, originalpoints.size()));
+		PointSegment<N> split2 = new PointSegment< N>(points.subList(index, points.size()), middle, end);
 		subsegments.add(split2);
 		
 		return subsegments;

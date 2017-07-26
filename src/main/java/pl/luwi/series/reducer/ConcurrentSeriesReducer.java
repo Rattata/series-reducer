@@ -38,22 +38,24 @@ public class ConcurrentSeriesReducer {
 	 * @throws InterruptedException 
 	 */
 	public static <P extends Point> List<P> reduce(List<P> points, double epsilon) throws InterruptedException, ExecutionException {
-		ExecutorService exec = new ThreadPoolExecutor(1000000, 1000000, 1, TimeUnit.DAYS,
-                new PriorityBlockingQueue<Runnable>((int)Math.sqrt(points.size()), new PriorityFutureComparator())) {
-
-            protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
-                RunnableFuture<T> newTaskFor = super.newTaskFor(callable);
-                return new PriorityFuture<T>(newTaskFor, ((Prioritized) callable).getPriority());
-            }
-        };
+		ExecutorService exec = Executors.newCachedThreadPool();
+//		ExecutorService exec = new ThreadPoolExecutor(2000, 1000000, 1, TimeUnit.DAYS,
+//                new PriorityBlockingQueue<Runnable>((int)Math.sqrt(points.size()), new PriorityFutureComparator())) {
+//
+//            protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+//                RunnableFuture<T> newTaskFor = super.newTaskFor(callable);
+//                return new PriorityFuture<T>(newTaskFor, ((Prioritized) callable).getPriority());
+//            }
+//        };
 		ReduceTask<P> task = new ReduceTask<P>(points, exec, epsilon);
 		exec.submit(task).get();
-		System.out.println("derp");
 		
 		List<P> result = task.result.newpoints.keySet().stream()
 				.sorted().map((x) -> task.result.newpoints.get(x))
 				.collect(Collectors.toList());
-		System.out.println(result);
+		for (P p : result) {
+			System.out.println(p.toString());			
+		};
 		exec.shutdown();
 		exec.awaitTermination(1000, TimeUnit.NANOSECONDS);
 		return result;
@@ -69,11 +71,11 @@ public class ConcurrentSeriesReducer {
 		ConcurrentSeriesReducer reducer = new ConcurrentSeriesReducer();
 		
 		ArrayList<MyPoint> points = new ArrayList<>();
-		for(int i = 0 ; i < 6; i++) {
+		for(int i = 0 ; i < 2000; i++) {
 			points.add(new MyPoint());
 		}
 		try {
-			ConcurrentSeriesReducer.reduce(points, 100);
+			ConcurrentSeriesReducer.reduce(points, 1);
 		} catch (Exception e) {
 			// TODO: handle exception
 		}
