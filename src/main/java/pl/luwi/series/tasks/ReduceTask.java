@@ -4,58 +4,64 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
 import pl.luwi.series.reducer.OrderedPoint;
 import pl.luwi.series.reducer.Point;
 import pl.luwi.series.reducer.PointSegment;
 
-public class ReduceTask<P extends Point> implements Callable<ReduceResult<P>>,Prioritized {
+public class ReduceTask<P extends Point> extends Process {
 
-	ExecutorService executor;
-	PointSegment<P> segment;
+	public LinkedBlockingQueue<PointSegment<P>> inputQueue = new LinkedBlockingQueue<>();
+	public LinkedBlockingQueue<PointSegment<P>> outputQueue = new LinkedBlockingQueue<>();
+	public LinkedBlockingQueue<OrderedPoint<P>> resultQueue = new LinkedBlockingQueue<>();
+
 	public ReduceResult<P> result;
 	double epsilon;
 
-	public ReduceTask(PointSegment<P> points, ExecutorService taskpool, double epsilon) {
-		super();
-		this.executor = taskpool;
+	public ReduceTask(double epsilon, Process master) {
+		super(master);
 		result = new ReduceResult<>();
-		segment = points;
 		this.epsilon = epsilon;
 	}
 
-	public ReduceTask(List<P> points, ExecutorService taskpool, double epsilon) {
-		this(new PointSegment<>(points), taskpool, epsilon);
-	}
-	
 	@Override
-	public int getPriority() {
-		return segment.points.size();
-	}
-
-	@Override
-	public ReduceResult<P> call() throws Exception {
+	public void run() {
 		try {
-			FindMaximumTask<P> findMaximum = new FindMaximumTask<>(segment, 0, segment.points.size() - 1);
-			executor.submit(findMaximum).get();
-			
-			if(findMaximum.bestDistance > epsilon) {
-				List<ReduceTask<P>> subtasks  = new ArrayList<>();
-				for(PointSegment<P> newsegment : segment.split(findMaximum.bestIndex)){
-					result.segments.add(newsegment);
+			PointSegment<P> segment;
+			while (!isMasterDone() && !isDone()) {
+
+				while ((segment = inputQueue.poll(ConcurrentConstants.TIMEOUT_NS, TimeUnit.MICROSECONDS)) != null) {
+					if (segment == null)
+						continue;
+					System.out.println(this.getClass().getName());
+					if (segment.bestdistance > epsilon) {
+
+						for (PointSegment<P> newsegment : segment.split()) {
+							outputQueue.add(newsegment);
+						}
+
+					} else {
+						for (OrderedPoint<P> orderedPoint : segment.asList()) {
+							resultQueue.add(orderedPoint);
+						}
+					}
 				}
-				executor.invokeAll(subtasks);
-				
-			} else {
-				for (OrderedPoint<P> orderedPoint : segment.asList()) {
-					result.filteredPoints.add( orderedPoint);					
+				if(inputQueue.isEmpty() && outputQueue.isEmpty()) {
+					isDone = true;
 				}
 			}
-			return result;
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return null;
+		isDone = true;
+	}
+
+	@Override
+	public boolean isDone() {
+		return isDone;
 	}
 
 }
