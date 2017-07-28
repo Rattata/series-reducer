@@ -67,7 +67,7 @@ public class FindMaximumTask<P extends Point> implements Callable<Void>,Comparab
 			List<FindMaximumTask<P>> subtasks = new ArrayList<>();
 			for(int i = 0 ; i < CORES;i++) {
 				int start = (int)Math.round(i * delta - 1);
-				int end = (int)Math.round((i+1)* delta - 1);
+				int end = (int)Math.round((i+1)* delta);
 				subtasks.add(new FindMaximumTask<>(service, segment, start, end));
 			}
 			try {

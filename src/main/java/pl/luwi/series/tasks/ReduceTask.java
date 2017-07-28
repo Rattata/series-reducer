@@ -8,23 +8,23 @@ import pl.luwi.series.reducer.OrderedPoint;
 import pl.luwi.series.reducer.Point;
 import pl.luwi.series.reducer.PointSegment;
 
-public class ReduceTask<P extends Point> implements Callable<Void>,Prioritized {
+public class ReduceTask<P extends Point> implements Callable<ReduceResult<P>>,Prioritized {
 
 	ExecutorService executor;
 	PointSegment<P> segment;
 	public ReduceResult<P> result;
 	double epsilon;
 
-	public ReduceTask(PointSegment<P> points, ExecutorService service, ReduceResult<P> result, double epsilon) {
+	public ReduceTask(PointSegment<P> points, ExecutorService taskpool, double epsilon) {
 		super();
-		executor = service;
-		this.result = result;
+		this.executor = taskpool;
+		result = new ReduceResult<>();
 		segment = points;
 		this.epsilon = epsilon;
 	}
 
-	public ReduceTask(List<P> points, ExecutorService service, double epsilon) {
-		this(new PointSegment<>(points), service, new ReduceResult<P>(), epsilon);
+	public ReduceTask(List<P> points, ExecutorService taskpool, double epsilon) {
+		this(new PointSegment<>(points), taskpool, epsilon);
 	}
 	
 	@Override
@@ -33,7 +33,7 @@ public class ReduceTask<P extends Point> implements Callable<Void>,Prioritized {
 	}
 
 	@Override
-	public Void call() throws Exception {
+	public ReduceResult<P> call() throws Exception {
 		try {
 			FindMaximumTask<P> findMaximum = new FindMaximumTask<>(segment, 0, segment.points.size() - 1);
 			executor.submit(findMaximum).get();
@@ -41,17 +41,16 @@ public class ReduceTask<P extends Point> implements Callable<Void>,Prioritized {
 			if(findMaximum.bestDistance > epsilon) {
 				List<ReduceTask<P>> subtasks  = new ArrayList<>();
 				for(PointSegment<P> newsegment : segment.split(findMaximum.bestIndex)){
-					ReduceTask<P> subtask = new ReduceTask<P>(newsegment, executor, result, epsilon);
-					subtasks.add(subtask);
+					result.segments.add(newsegment);
 				}
 				executor.invokeAll(subtasks);
 				
 			} else {
 				for (OrderedPoint<P> orderedPoint : segment.asList()) {
-					result.newpoints.putIfAbsent(orderedPoint.getIndex(), orderedPoint.getPoint());					
+					result.filteredPoints.add( orderedPoint);					
 				}
 			}
-			return null;
+			return result;
 
 		} catch (Exception e) {
 			e.printStackTrace();

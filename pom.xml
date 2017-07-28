@@ -16,5 +16,23 @@
 			<artifactId>jfreechart</artifactId>
 			<version>1.0.19</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-core</artifactId>
+			<version>5.7.0</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.activemq/activemq-broker -->
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-broker</artifactId>
+			<version>5.15.0</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.activemq/activemq-client -->
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-client</artifactId>
+			<version>5.15.0</version>
+		</dependency>
+
 	</dependencies>
 </project>
