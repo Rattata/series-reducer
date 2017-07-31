@@ -3,8 +3,8 @@ package pl.luwi.series.tasks;
 import pl.luwi.series.reducer.Point;
 import pl.luwi.series.reducer.PointSegment;
 
-public class FindMaximum<P extends Point> {
-	PointSegment<P> segment;
+public class FindMaximum {
+	PointSegment segment;
 	int startIndex;
 	int endIndex;
 	double bestDistance;

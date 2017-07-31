@@ -1,64 +1,57 @@
 package pl.luwi.series.tasks;
 
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import org.jfree.util.WaitingImageObserver;
+
+import static pl.luwi.series.tasks.ConcurrentConstants.TIMEOUT_uS;
 
 import pl.luwi.series.reducer.Point;
 import pl.luwi.series.reducer.PointSegment;
 
-public class FindMaximumProcessor<P extends Point> extends Process {
+public class FindMaximumProcessor extends CommunicatingThread<LinkedBlockingQueue<List<FindMaximum>>,LinkedBlockingQueue<List<FindMaximum>>>{
 
-	LinkedBlockingQueue<List<FindMaximum<P>>> input;
-	public LinkedBlockingQueue<List<FindMaximum<P>>> output;
+	private int id;
 
-	int threadId;
-
-	public FindMaximumProcessor(int threadId, Process master, LinkedBlockingQueue<List<FindMaximum<P>>> input,
-			LinkedBlockingQueue<List<FindMaximum<P>>> output) {
-		super(master);
-		this.threadId = threadId;
-		this.input = input;
-		this.output = output;
+	public FindMaximumProcessor(LinkedBlockingQueue<List<FindMaximum>> inputQueue,
+			LinkedBlockingQueue<List<FindMaximum>> outputQueue, int id, List<CommunicatingThread<?, ?>> peers) {
+		super(inputQueue, outputQueue);
+		this.id = id;
+		for (CommunicatingThread<?, ?> communicatingThread : peers) {
+			addPeer(communicatingThread);
+		}
 	}
 
 	@Override
-	public void run() {
-		List<FindMaximum<P>> findTaskList;
-		try {
-			while (!isMasterDone()) {
-
-				while ((findTaskList = input.poll(ConcurrentConstants.TIMEOUT_NS, TimeUnit.MICROSECONDS)) != null) {
-					if (findTaskList == null)
-						continue;
-					System.out.println(this.getClass().getName());
-					FindMaximum<P> task = findTaskList.get(threadId);
-					getMax(task);
-					output.add(findTaskList);
-				}
-			}
+	public void process(LinkedBlockingQueue<List<FindMaximum>> inputQueue,
+			LinkedBlockingQueue<List<FindMaximum>> outputQueue) throws Exception {
+		List<FindMaximum> maximum = null;
+		while((maximum = inputQueue.poll(timeOut, TimeUnit.MICROSECONDS))!= null){
+			FindMaximum task = maximum.get(id);
+			FindMaximumInRange(task, task.startIndex, task.endIndex);
+			outputQueue.put(maximum);
+		}
+	}
+//
+//	@Override
+//	public boolean IsDone() {
+//		return ! this.getCurrentState().equals(STATE.RUNNING) && inputQueue.isEmpty() && outputQueue.isEmpty();
+//	};
+	
+	private void FindMaximumInRange(FindMaximum findTask, int startRange, int endRange){
+		PointSegment segment = findTask.segment;
+		for(int i = startRange; i <= endRange; i++){
+			double distance = segment.distance(segment.points.get(i));
 			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		isDone = true;
-		
-	}
-
-	
-	
-	public void getMax(FindMaximum<P> findmax) {
-		PointSegment<P> segment = findmax.segment;
-		for (int i = findmax.startIndex; i <= findmax.endIndex; i++) {
-			double dist = segment.distance(segment.points.get(i));
-			if (dist > findmax.bestDistance) {
-				findmax.bestDistance = dist;
-				findmax.bestIndex = i;
-
+			if(distance > findTask.bestDistance){
+				findTask.bestDistance = distance;
+				findTask.bestIndex = i;
 			}
 		}
-	}
+		
+	} 
 
+	
 }

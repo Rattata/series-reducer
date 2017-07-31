@@ -1,67 +1,39 @@
 package pl.luwi.series.tasks;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import pl.luwi.series.reducer.OrderedPoint;
-import pl.luwi.series.reducer.Point;
 import pl.luwi.series.reducer.PointSegment;
 
-public class ReduceTask<P extends Point> extends Process {
-
-	public LinkedBlockingQueue<PointSegment<P>> inputQueue = new LinkedBlockingQueue<>();
-	public LinkedBlockingQueue<PointSegment<P>> outputQueue = new LinkedBlockingQueue<>();
-	public LinkedBlockingQueue<OrderedPoint<P>> resultQueue = new LinkedBlockingQueue<>();
-
-	public ReduceResult<P> result;
+public class ReduceTask extends CommunicatingThread<LinkedBlockingQueue<PointSegment>, LinkedBlockingQueue<PointSegment>> {
+	
 	double epsilon;
-
-	public ReduceTask(double epsilon, Process master) {
-		super(master);
-		result = new ReduceResult<>();
+	ConcurrentHashMap<Integer, OrderedPoint<?>> results;
+	
+	public ReduceTask(LinkedBlockingQueue<PointSegment> inputQueue, LinkedBlockingQueue<PointSegment> outputQueue,  double epsilon, ConcurrentHashMap<Integer, OrderedPoint<?>> results) {
+		super(inputQueue, outputQueue);
 		this.epsilon = epsilon;
+		this.results = results;
 	}
 
 	@Override
-	public void run() {
-		try {
-			PointSegment<P> segment;
-			while (!isMasterDone() && !isDone()) {
-
-				while ((segment = inputQueue.poll(ConcurrentConstants.TIMEOUT_NS, TimeUnit.MICROSECONDS)) != null) {
-					if (segment == null)
-						continue;
-					System.out.println(this.getClass().getName());
-					if (segment.bestdistance > epsilon) {
-
-						for (PointSegment<P> newsegment : segment.split()) {
-							outputQueue.add(newsegment);
-						}
-
-					} else {
-						for (OrderedPoint<P> orderedPoint : segment.asList()) {
-							resultQueue.add(orderedPoint);
-						}
-					}
+	public void process(LinkedBlockingQueue<PointSegment> inputQueue, LinkedBlockingQueue<PointSegment> outputQueue)
+			throws Exception {
+		PointSegment segment = null;
+		while ((segment = inputQueue.poll(timeOut, TimeUnit.MICROSECONDS)) != null){
+			if(segment.bestdistance > epsilon){
+				for (PointSegment pointSegment : segment.split()) {
+					outputQueue.add(pointSegment);
 				}
-				if(inputQueue.isEmpty() && outputQueue.isEmpty()) {
-					isDone = true;
+			} else {
+				for (OrderedPoint<?> point : segment.asList()) {
+					results.put(point.getIndex(), point);					
 				}
 			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
-		isDone = true;
-	}
-
-	@Override
-	public boolean isDone() {
-		return isDone;
+		
 	}
 
 }
