@@ -104,7 +104,7 @@ public class ConcurrentSeriesReducer {
 
 		ArrayList<MyPoint> points = new ArrayList<>();
 		
-		for (int i = 0; i < 10000000; i++) {
+		for (int i = 0; i < 10000; i++) {
 			points.add(new MyPoint());
 		}
 		try {
