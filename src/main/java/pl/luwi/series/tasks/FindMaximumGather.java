@@ -1,36 +1,47 @@
 package pl.luwi.series.tasks;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import pl.luwi.series.reducer.PointSegment;
 
-public class FindMaximumGather extends CommunicatingThread<LinkedBlockingQueue<List<FindMaximum>>, LinkedBlockingQueue<PointSegment>> {
+public class FindMaximumGather extends CommunicatingThread<LinkedBlockingQueue<FindMaximumTask>, LinkedBlockingQueue<PointSegment>> {
 	
-	public FindMaximumGather(LinkedBlockingQueue<List<FindMaximum>> input, LinkedBlockingQueue<PointSegment> output) {
+	LinkedBlockingQueue<FindMaximumResult> TraceInput = new LinkedBlockingQueue<>();
+	ConcurrentHashMap<Integer, FindMaximumResult> resultCache;
+	public FindMaximumGather(LinkedBlockingQueue<FindMaximumTask> input, LinkedBlockingQueue<PointSegment> output, ConcurrentHashMap<Integer , FindMaximumResult> resultcache) {
 		super(input, output);
 		
 	}
 
 	@Override
-	public void process(LinkedBlockingQueue<List<FindMaximum>> inputQueue,
+	public void process(LinkedBlockingQueue<FindMaximumTask> inputQueue,
 			LinkedBlockingQueue<PointSegment> outputQueue) throws Exception {
-		List<FindMaximum> findMaximumTasks = null;
-		while ((findMaximumTasks = inputQueue.poll(timeOut, TimeUnit.MICROSECONDS)) != null){
-			FindMaximum maximum = findMaximumTasks.stream().max(pointComparator).get();
-			PointSegment returnSegment = maximum.segment;
-			returnSegment.bestdistance = maximum.bestDistance;
-			returnSegment.maximum = maximum.bestIndex;
-			outputQueue.add(returnSegment);
+		FindMaximumTask localMaximum = null;
+		while ((localMaximum = inputQueue.poll(timeOut, TimeUnit.MICROSECONDS)) != null){
+			FindMaximumResult result = resultCache.get(localMaximum.trace);
+			
+			
+			if(result.tasks.size() == result.totalItems) {
+				FindMaximumTask furthest  = result.tasks.stream().max(pointComparator).get();
+				PointSegment returnSegment = furthest.segment;
+				returnSegment.bestdistance = furthest.bestDistance;
+				returnSegment.maximum = furthest.bestIndex;
+				outputQueue.add(returnSegment);
+			}
+			
 		}
 	}
 	
-	Comparator<FindMaximum> pointComparator = new Comparator<FindMaximum>() {
+	Comparator<FindMaximumTask> pointComparator = new Comparator<FindMaximumTask>() {
 		
 		@Override
-		public int compare(FindMaximum o1, FindMaximum o2) {
+		public int compare(FindMaximumTask o1, FindMaximumTask o2) {
 			return Double.compare(o1.bestDistance, o2.bestDistance);
 		}
 	};

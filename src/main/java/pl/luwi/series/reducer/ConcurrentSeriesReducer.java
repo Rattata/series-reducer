@@ -13,7 +13,7 @@ import pl.luwi.series.tasks.FindMaximumSpreader;
 import pl.luwi.series.tasks.CommunicatingThread;
 import pl.luwi.series.tasks.CommunicatingThread.STATE;
 import pl.luwi.series.tasks.ConcurrentConstants;
-import pl.luwi.series.tasks.FindMaximum;
+import pl.luwi.series.tasks.FindMaximumTask;
 import pl.luwi.series.tasks.FindMaximumGather;
 import pl.luwi.series.tasks.FindMaximumProcessor;
 import pl.luwi.series.tasks.ReduceTask;
@@ -54,10 +54,10 @@ public class ConcurrentSeriesReducer {
 		LinkedBlockingQueue<PointSegment> maxedSegments = new LinkedBlockingQueue<>();
 		queues.add(maxedSegments);
 		
-		LinkedBlockingQueue<List<FindMaximum>> findMaximumFirst = new LinkedBlockingQueue<>();
-		LinkedBlockingQueue<List<FindMaximum>> findMaximumTemp = findMaximumFirst;
+		LinkedBlockingQueue<List<FindMaximumTask>> findMaximumFirst = new LinkedBlockingQueue<>();
+		LinkedBlockingQueue<List<FindMaximumTask>> findMaximumTemp = findMaximumFirst;
 		queues.add(findMaximumFirst);
-		LinkedBlockingQueue<List<FindMaximum>> findMaximumLast = null;
+		LinkedBlockingQueue<List<FindMaximumTask>> findMaximumLast = null;
 		List<FindMaximumProcessor> findMaximumProcessors = new ArrayList<>();
 		for(int i = 0 ;i < findmaxThreads; i++){
 			
