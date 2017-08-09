@@ -104,13 +104,17 @@ public class ConcurrentSeriesReducer {
 
 		ArrayList<MyPoint> points = new ArrayList<>();
 		
-		for (int i = 0; i < 10000; i++) {
+		for (int i = 0; i < 1000000; i++) {
 			points.add(new MyPoint());
 		}
 		try {
 			for(int i = 0 ;i < 10; i++){
 				System.out.println("\n\n\n");
-				ConcurrentSeriesReducer.reduce(points, 1, 5);
+				List<MyPoint> reducedPoints = ConcurrentSeriesReducer.reduce(points, 1, 5);
+//				for(int j = 0 ;j < reducedPoints.size(); j++){
+//					System.out.print(reducedPoints.get(j).toString());
+//				}
+				System.out.println("original size: "+ points.size() + "\treduced:" + reducedPoints.size() +"\n\n");
 				Runtime.getRuntime().gc();
 				Thread.sleep(10);
 			}
