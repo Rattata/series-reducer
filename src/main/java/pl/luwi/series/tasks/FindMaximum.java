@@ -1,12 +1,23 @@
 package pl.luwi.series.tasks;
 
-import pl.luwi.series.reducer.Point;
+import java.io.Serializable;
+
 import pl.luwi.series.reducer.PointSegment;
 
-public class FindMaximum {
-	PointSegment segment;
-	int startIndex;
-	int endIndex;
-	double bestDistance;
-	int bestIndex;
+public class FindMaximum implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	public PointSegment segment;
+	public int startIndex;
+	public int endIndex;
+	public double bestDistance;
+	public int bestIndex;
+
+	public double dx;
+	public double dy;
+	public double sxey;
+	public double exsy;
+	public double length;
 }
