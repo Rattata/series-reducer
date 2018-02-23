@@ -2,6 +2,7 @@ package pl.luwi.series.distributed;
 
 import static pl.luwi.series.distributed.Constants.*;
 
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -27,8 +28,9 @@ public class ProcessFindmaxReduceSegments {
 	MessageProducer producer;
 	MessageConsumer consumer;
 	Session session;
+	
 
-	HashMap<Integer, HashMap<Integer, List<TaskFindMax>>> calculationmap;
+	RegistrationService service;
 	
 	public static void main(String[] args) {
 		try {
@@ -39,24 +41,12 @@ public class ProcessFindmaxReduceSegments {
 		}
 	}
 	
-	public void StoreMessage(TaskFindMax task) throws JMSException{
-		
-
-		HashMap<Integer, List<TaskFindMax>> result = calculationmap.get(task.calculationIdentifier);
-		if(result == null){
-			result = new HashMap<Integer, List<TaskFindMax>>();
-			calculationmap.put(task.calculationIdentifier, result);
-		}
-		
-		List<TaskFindMax> findMaxResults = result.get(task.spreadID);
-		if (findMaxResults == null) {
-			findMaxResults = new ArrayList<>();
-			result.put(task.spreadID, findMaxResults);
-		}
+	public void StoreMessage(TaskFindMax task) throws JMSException, RemoteException{
 		
 		
-		findMaxResults.add(task);
-		System.out.printf("%d:%d:%d %d/%d%n",task.calculationIdentifier, task.lineID, task.spreadID, findMaxResults.size() , task.totalSegments );
+		List<TaskFindMax> findMaxResults = service.storeFindMax(task);
+		
+		System.out.printf("%d:%d:%d %d/%d%n",task.calculationIdentifier, task.lineID, task.spreadID ,task.segment, task.totalSegments );
 		if(findMaxResults.size() >= task.totalSegments){
 			List<OrderedPoint> pointList = findMaxResults.stream().sorted(OrderComparator).flatMap(x -> Arrays.stream(x.points)).collect(Collectors.toList());
 			OrderedPoint[] points = new OrderedPoint[pointList.size()];
@@ -69,12 +59,11 @@ public class ProcessFindmaxReduceSegments {
 			producer.send(session.createObjectMessage(newTask));
 			
 			System.out.printf("%d:%d:%d gathered all parts%n", task.calculationIdentifier, task.lineID, task.spreadID);
-			result.remove(task.spreadID);
 		}
 	}
 
-	public void Process() throws JMSException {
-		calculationmap = new HashMap<Integer, HashMap<Integer, List<TaskFindMax>>>();
+	public void Process() throws JMSException, RemoteException {
+		service = ProcessRegistrar.connect();
 		while (true) {
 			Message message = consumer.receive();
 			if (message instanceof ObjectMessage) {

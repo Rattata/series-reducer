@@ -2,7 +2,10 @@ package pl.luwi.series.distributed;
 
 import static pl.luwi.series.distributed.Constants.*;
 
+import java.rmi.RemoteException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Stack;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -25,6 +28,8 @@ public class ProcessFindmaxMapLineToSegments {
 	MessageConsumer consumer;
 	Session session;
 
+	RegistrationService service;
+	
 	public static void main(String[] args) {
 		try {
 			ProcessFindmaxMapLineToSegments spreader = new ProcessFindmaxMapLineToSegments();
@@ -40,9 +45,10 @@ public class ProcessFindmaxMapLineToSegments {
 		}
 
 	}
-	int spreadID = 0;
 	
-	public void Process() throws JMSException {
+	Stack<Integer> unusedSpreadIDs = new Stack<>();
+	public void Process() throws JMSException , RemoteException{
+		service = ProcessRegistrar.connect();
 		while (true) {
 			Message message = consumer.receive();
 			if (message instanceof ObjectMessage) {
@@ -50,7 +56,11 @@ public class ProcessFindmaxMapLineToSegments {
 				System.out.println(task.line.calculationIdentifier + ":"+task.line.lineID);
 				TaskFindMax[] result = null;
 				Line line = task.line;
+				if(unusedSpreadIDs.isEmpty()){
+					unusedSpreadIDs.addAll(service.getSpreadIDs(1000));
+				}
 				
+				int spreadID = unusedSpreadIDs.pop();
 				int segments = (int)Math.ceil(line.points.length / QUEUE_FINDMAX_SPREADER_LENGTHTHRESHOLD);
 				result = new TaskFindMax[segments];
 				if(segments == 0){
@@ -63,7 +73,6 @@ public class ProcessFindmaxMapLineToSegments {
 							endIndex);
 					result[i] = new TaskFindMax(subset, line, line.calculationIdentifier, spreadID, segments, i);
 				}
-				spreadID++;
 				
 				for (TaskFindMax taskFindMax : result) {
 					System.out.println(taskFindMax.calculationIdentifier + ":" + taskFindMax.lineID + " : " + taskFindMax.spreadID + " : " + taskFindMax.segment + "/" + taskFindMax.totalSegments);

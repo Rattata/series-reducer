@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -26,6 +27,8 @@ import javax.jms.MessageProducer;
 import javax.jms.ObjectMessage;
 import javax.jms.Session;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.network.ConditionalNetworkBridgeFilterFactory;
+
 import static pl.luwi.series.distributed.Constants.*;
 import pl.luwi.series.reducer.Point;
 
@@ -114,9 +117,12 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	int spreadID = 0;
 
 	@Override
-	public int[] getSpreadIDs(int number) throws RemoteException {
-		// TODO Auto-generated method stub
-		return null;
+	public List<Integer> getSpreadIDs(int number) throws RemoteException {
+		List<Integer> spreadIDs = new ArrayList<>();
+		for (int i = 0; i < number; i++) {
+			spreadIDs.add(spreadID++);
+		}
+		return spreadIDs;
 	}
 
 	int lineID = 0;
@@ -184,6 +190,22 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	public void putResult(List<Integer> indices, Integer calculationID) throws RemoteException {
 		results.put(calculationID, indices);
 		latches.get(calculationID).countDown();
+	}
+
+	
+	HashMap<Integer, FindmaxSpreadContainer> spreadResults = new HashMap<>();
+	ReentrantLock lock = new ReentrantLock();
+	@Override
+	public List<TaskFindMax> storeFindMax(TaskFindMax max) throws RemoteException {
+		lock.lock();
+		FindmaxSpreadContainer container = spreadResults.get(max.calculationIdentifier);
+		if(container == null){
+			container = new FindmaxSpreadContainer();
+			spreadResults.put(max.calculationIdentifier, container);
+		}
+		List<TaskFindMax> results =  container.storeFindMax(max);
+		lock.unlock();
+		return results;
 	}
 
 }
