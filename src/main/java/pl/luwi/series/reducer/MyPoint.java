@@ -1,8 +1,9 @@
 package pl.luwi.series.reducer;
 
+import java.io.Serializable;
 import java.util.Random;
 
-public class MyPoint implements Point {
+public class MyPoint implements Point, Serializable {
 	
 	double X;
 	double Y;

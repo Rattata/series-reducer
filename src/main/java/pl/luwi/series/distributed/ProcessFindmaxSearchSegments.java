@@ -15,14 +15,14 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-public class ProcessFindmaxProcessor {
+public class ProcessFindmaxSearchSegments {
 
 	MessageProducer producer;
 	MessageConsumer consumer;
 	Session session;
 	public static void main(String[] args) {
 		try {
-			ProcessFindmaxProcessor spreader = new ProcessFindmaxProcessor();
+			ProcessFindmaxSearchSegments spreader = new ProcessFindmaxSearchSegments();
 			spreader.Process();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -44,7 +44,7 @@ public class ProcessFindmaxProcessor {
 		}
 	};
 
-	public ProcessFindmaxProcessor() throws JMSException {
+	public ProcessFindmaxSearchSegments() throws JMSException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ACTIVEMQ_USER, ACTIVEMQ_PASSWORD,
 				ACTIVEMQ_URL);
 

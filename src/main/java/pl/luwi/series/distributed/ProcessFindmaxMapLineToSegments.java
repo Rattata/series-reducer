@@ -19,7 +19,7 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-public class ProcessFindmaxSpreader {
+public class ProcessFindmaxMapLineToSegments {
 
 	MessageProducer producer;
 	MessageConsumer consumer;
@@ -27,7 +27,7 @@ public class ProcessFindmaxSpreader {
 
 	public static void main(String[] args) {
 		try {
-			ProcessFindmaxSpreader spreader = new ProcessFindmaxSpreader();
+			ProcessFindmaxMapLineToSegments spreader = new ProcessFindmaxMapLineToSegments();
 			while (true) {
 				try {
 					spreader.Process();
@@ -76,7 +76,7 @@ public class ProcessFindmaxSpreader {
 		}
 	};
 
-	public ProcessFindmaxSpreader() throws JMSException {
+	public ProcessFindmaxMapLineToSegments() throws JMSException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ACTIVEMQ_USER, ACTIVEMQ_PASSWORD,
 				ACTIVEMQ_URL);
 

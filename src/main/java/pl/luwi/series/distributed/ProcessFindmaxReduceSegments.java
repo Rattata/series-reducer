@@ -22,7 +22,7 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnection;
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-public class ProcessFindmaxGather {
+public class ProcessFindmaxReduceSegments {
 
 	MessageProducer producer;
 	MessageConsumer consumer;
@@ -32,7 +32,7 @@ public class ProcessFindmaxGather {
 	
 	public static void main(String[] args) {
 		try {
-			ProcessFindmaxGather gatherer = new ProcessFindmaxGather();
+			ProcessFindmaxReduceSegments gatherer = new ProcessFindmaxReduceSegments();
 			gatherer.Process();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -104,7 +104,7 @@ public class ProcessFindmaxGather {
 
 	};
 	
-	public ProcessFindmaxGather() throws JMSException {
+	public ProcessFindmaxReduceSegments() throws JMSException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ACTIVEMQ_USER, ACTIVEMQ_PASSWORD,
 				ACTIVEMQ_URL);
 

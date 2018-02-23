@@ -2,6 +2,10 @@ package pl.luwi.series.distributed;
 
 import static pl.luwi.series.distributed.Constants.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -21,54 +25,59 @@ public class ProcessSplitter {
 	MessageProducer resultproducer;
 	MessageConsumer consumer;
 	Session session;
+	RegistrationService service;
+	Stack<Integer> lineIDs = new Stack<>();
 
 	public static void main(String[] args) {
 		try {
 			ProcessSplitter spreader = new ProcessSplitter();
 			while (true) {
-				try {
-					spreader.Process();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				spreader.Process();
+
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 	}
-
-	int lineID = 1;
+	
 
 	public void Process() throws JMSException {
 		while (true) {
-			Message message = consumer.receive();
-			if (message instanceof ObjectMessage) {
-				TaskSplitLine task = (TaskSplitLine) ((ObjectMessage) message).getObject();
-				if (task.epsilon >= SPLIT_EPSILON) {
+			try {
+				service = ProcessRegistrar.connect();
+				Message message = consumer.receive();
+				if (message instanceof ObjectMessage) {
+					TaskSplitLine task = (TaskSplitLine) ((ObjectMessage) message).getObject();
+					if (task.epsilon >= SPLIT_EPSILON) {
+						if(lineIDs.size() < 50){
+							lineIDs.addAll(service.getLineIDs(1000));
+						}
+						int lineID = lineIDs.pop();
+						
+						Line[] lines = task.line.split(task.index, task.line.lineID, lineID);
+						for (Line line : lines) {
+							findmaxproducer.send(session.createObjectMessage(new TaskFindmaxSpread(line)));
+						}
 
-					Line[] lines = task.line.split(task.index, task.line.lineID, lineID);
-					for (Line line : lines) {
-						findmaxproducer.send(session.createObjectMessage(new TaskFindmaxSpread(line)));						
+						/// update expected results
+						System.out.printf("%d:%d split -> %d %d %n", task.line.calculationIdentifier, task.line.lineID,
+								lines[0].lineID, lines[1].lineID);
+						resultproducer.send(session.createObjectMessage(
+								new SignalResultExpectation(task.line.calculationIdentifier, lineID)));
+						lineID++;
+					} else {
+
+						System.out.println(task.line.calculationIdentifier + ":" + task.line.lineID + ":result");
+						resultproducer.send(session.createObjectMessage(new TaskResult(task.line.calculationIdentifier,
+								task.line.lineID, task.line.start, task.line.end)));
 					}
 
-					/// update expected results
-					System.out.printf("%d:%d split -> %d %d %n", task.line.calculationIdentifier,task.line.lineID, lines[0].lineID,
-							lines[1].lineID);
-					resultproducer.send(session.createObjectMessage(
-							new SignalResultExpectation(task.line.calculationIdentifier, lineID)));
-					lineID++;
 				} else {
-
-					System.out.println(task.line.calculationIdentifier + ":" + task.line.lineID + ":result");
-					resultproducer.send(session.createObjectMessage(new TaskResult(task.line.calculationIdentifier,
-							task.line.lineID, task.line.start, task.line.end)));
+					System.err.println("message could not be deserialized");
 				}
-
-			} else {
-				System.err.println("message could not be deserialized");
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-
 		}
 	};
 

@@ -4,6 +4,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import javax.jms.JMSException;
@@ -14,6 +15,8 @@ import pl.luwi.series.distributed.DistributedSeriesReducer;
 //
 //import pl.luwi.series.distributed.DistributedPoint;
 //import pl.luwi.series.distributed.DistributedLineSegment;
+import pl.luwi.series.distributed.ProcessRegistrar;
+import pl.luwi.series.distributed.RegistrationService;
 
 public class DistributedTests {
     
@@ -26,8 +29,9 @@ ArrayList<MyPoint> points = new ArrayList<>();
 			points.add(new MyPoint());
 		}
 		try {
-			DistributedSeriesReducer.reduce(points, 1);
-		} catch (JMSException e) {
+			RegistrationService resv =  ProcessRegistrar.connect();
+			List<MyPoint> ret =  resv.reduce(points, 1);
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

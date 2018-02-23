@@ -2,7 +2,10 @@ package pl.luwi.series.distributed;
 
 import static pl.luwi.series.distributed.Constants.*;
 
+import java.rmi.RemoteException;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -22,12 +25,15 @@ public class ProcessResults {
 	MessageProducer producer;
 	MessageConsumer consumer;
 	Session session;
-
+	
+	RegistrationService service;
+	
 	HashMap<Integer, CalculationResultTask> resultContainers = new HashMap<>(2);
 
 	public static void main(String[] args) {
 		try {
 			ProcessResults spreader = new ProcessResults();
+			
 			spreader.Process();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -35,7 +41,8 @@ public class ProcessResults {
 
 	}
 
-	public void Process() throws JMSException {
+	public void Process() throws JMSException, RemoteException {
+		service = ProcessRegistrar.connect();
 		while (true) {
 			Message message = consumer.receive();
 			if (message instanceof ObjectMessage) {
@@ -60,6 +67,8 @@ public class ProcessResults {
 					container.receiveResult(result);
 					
 					if(container.isDone()){
+						List<Integer> points=  container.getResults().stream().map(x -> x.order).collect(Collectors.toList());
+						service.putResult(points, container.calculationIdentifier);
 						System.out.println("Container is done");
 					}
 					
