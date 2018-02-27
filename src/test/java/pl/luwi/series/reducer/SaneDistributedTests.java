@@ -2,7 +2,9 @@ package pl.luwi.series.reducer;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static pl.luwi.series.reducer.Stopwatch.*;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -11,26 +13,27 @@ import javax.jms.JMSException;
 
 import org.testng.annotations.Test;
 
-import pl.luwi.series.distributed.DistributedSeriesReducer;
-//
-//import pl.luwi.series.distributed.DistributedPoint;
-//import pl.luwi.series.distributed.DistributedLineSegment;
-import pl.luwi.series.distributed.ProcessRegistrar;
-import pl.luwi.series.distributed.RegistrationService;
+import pl.luwi.series.sane.IndexedPoint;
+import pl.luwi.series.sane.OrderedPoint;
+import pl.luwi.series.sane.ProcessRegistrar;
+import pl.luwi.series.sane.RegistrationService;
 
-public class DistributedTests {
+
+public class SaneDistributedTests {
     
-	
 	@Test
 	public void HappyFlow(){
-ArrayList<MyPoint> points = new ArrayList<>();
-		
-		for (int i = 0; i <= 25000; i++) {
-			points.add(new MyPoint());
+ArrayList<IndexedPoint> points = new ArrayList<>();
+		Random r = new Random();
+		for (int i = 0; i <= 2000000; i++) {
+			points.add(new IndexedPoint(r.nextDouble()* 100, r.nextDouble() * 100, i));
 		}
 		try {
 			RegistrationService resv =  ProcessRegistrar.connect();
-			List<MyPoint> ret =  resv.reduce(points, 1);
+			Start();
+			List<IndexedPoint>  result=  resv.reduce(points, 20);
+			System.out.println(Stop() / 1000000000);
+			System.out.println(result.size());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

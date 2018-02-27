@@ -10,6 +10,4 @@ public class Stopwatch {
 	public static long Stop() {
 		return System.nanoTime() - nanos;
 	};
-	
-	
 }

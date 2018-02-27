@@ -17,7 +17,7 @@ public class Constants {
 	public static final String QUEUE_RESULT_GATHER = "6_LINE_RESULT_GATHER";
 	public static final String QUEUE_PICKUP = "7_LINE_PICKUP";
 
-	public static final double QUEUE_FINDMAX_SPREADER_LENGTHTHRESHOLD = 5.0;
+	public static final double QUEUE_FINDMAX_SPREADER_LENGTHTHRESHOLD = 5000.0;
 	public static final int QUEUE_FINDMAX_SPREADER_SEGMENTS = 5;
 	public static final double SPLIT_EPSILON = 20;
 

@@ -152,7 +152,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 			for (int i = 0; i < points.size(); i++) {
 				orderedPoints[i] = new OrderedPoint(points.get(i), i);
 			}
-			Line task = new Line(new Random().nextInt(), orderedPoints, 0);
+			Line task = new Line(calculationID++, orderedPoints, 0);
 			if (task.calculationIdentifier == null) {
 				task.calculationIdentifier = getCalculationID();
 				System.out.println("registered calculation: " + task.calculationIdentifier);

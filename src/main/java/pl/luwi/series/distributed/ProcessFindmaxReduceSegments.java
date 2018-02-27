@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 import javax.jms.Connection;
@@ -25,13 +26,15 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 
 public class ProcessFindmaxReduceSegments {
 
-	MessageProducer producer;
+	MessageProducer mapLineProducer;
+	MessageProducer findmaxproducer;
 	MessageConsumer consumer;
 	Session session;
-	
 
 	RegistrationService service;
-	
+
+	Stack<Integer> lineIDs = new Stack<>();
+
 	public static void main(String[] args) {
 		try {
 			ProcessFindmaxReduceSegments gatherer = new ProcessFindmaxReduceSegments();
@@ -40,25 +43,58 @@ public class ProcessFindmaxReduceSegments {
 			e.printStackTrace();
 		}
 	}
-	
-	public void StoreMessage(TaskFindMax task) throws JMSException, RemoteException{
-		
-		
-		List<TaskFindMax> findMaxResults = service.storeFindMax(task);
-		
-		System.out.printf("%d:%d:%d %d/%d%n",task.calculationIdentifier, task.lineID, task.spreadID ,task.segment, task.totalSegments );
-		if(findMaxResults.size() >= task.totalSegments){
-			List<OrderedPoint> pointList = findMaxResults.stream().sorted(OrderComparator).flatMap(x -> Arrays.stream(x.points)).collect(Collectors.toList());
+
+	public void StoreMessage(TaskFindMax task) throws JMSException, RemoteException {
+
+		List<TaskFindMax> findMaxResults;
+		if (task.totalSegments != 1) {
+			findMaxResults = service.storeFindMax(task);
+		} else {
+			findMaxResults = new ArrayList<>();
+			findMaxResults.add(task);
+		}
+
+		System.out.printf("%d:%d:%d received %d/%d%n", task.calculationIdentifier, task.lineID, task.spreadID,
+				task.segment, task.totalSegments);
+		if (findMaxResults != null) {
+			List<OrderedPoint> pointList = findMaxResults.stream().sorted(OrderComparator)
+					.flatMap(x -> Arrays.stream(x.points)).collect(Collectors.toList());
 			OrderedPoint[] points = new OrderedPoint[pointList.size()];
 			pointList.toArray(points);
-			
-			TaskFindMax masxResult =  findMaxResults.stream().max(FindMaxComparator).get();
-			Line line = new Line(masxResult.calculationIdentifier, points, masxResult.start, masxResult.end,  masxResult.lineID);
-			TaskSplitLine newTask = new TaskSplitLine(line ,masxResult.furthestDistance, masxResult.maximumIndex);
-			
-			producer.send(session.createObjectMessage(newTask));
-			
+
+			TaskFindMax masxResult = findMaxResults.stream().max(FindMaxComparator).get();
+			Line line = new Line(masxResult.calculationIdentifier, points, masxResult.start, masxResult.end,
+					masxResult.lineID);
+
+			TaskSplitLine newTask = new TaskSplitLine(line, masxResult.furthestDistance, masxResult.maximumIndex);
+
+//			producer.send(session.createObjectMessage(newTask));
+
 			System.out.printf("%d:%d:%d gathered all parts%n", task.calculationIdentifier, task.lineID, task.spreadID);
+
+			if (newTask.epsilon >= SPLIT_EPSILON) {
+				if (lineIDs.isEmpty()) {
+					lineIDs.addAll(service.getLineIDs(1000));
+				}
+				int lineID = lineIDs.pop();
+				Line[] lines = newTask.line.split(newTask.index, newTask.line.lineID, lineID);
+				
+				for (Line line2 : lines) {
+					findmaxproducer.send(session.createObjectMessage(new TaskFindmaxSpread(line2)));
+				}
+
+				/// update expected results
+				System.out.printf("%d:%d split -> %d %d %n", newTask.line.calculationIdentifier, newTask.line.lineID,
+						lines[0].lineID, lines[1].lineID);
+				mapLineProducer.send(session
+						.createObjectMessage(new SignalResultExpectation(newTask.line.calculationIdentifier, lineID)));
+				lineID++;
+			} else {
+
+				System.out.println(newTask.line.calculationIdentifier + ":" + newTask.line.lineID + ":result");
+				mapLineProducer.send(session.createObjectMessage(new TaskResult(newTask.line.calculationIdentifier,
+						newTask.line.lineID, newTask.line.start, newTask.line.end)));
+			}
 		}
 	}
 
@@ -79,7 +115,7 @@ public class ProcessFindmaxReduceSegments {
 
 		@Override
 		public int compare(TaskFindMax o1, TaskFindMax o2) {
-			return o1.segment > o2.segment  ? 1 : -1;
+			return o1.segment > o2.segment ? 1 : -1;
 		}
 
 	};
@@ -92,7 +128,7 @@ public class ProcessFindmaxReduceSegments {
 		}
 
 	};
-	
+
 	public ProcessFindmaxReduceSegments() throws JMSException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ACTIVEMQ_USER, ACTIVEMQ_PASSWORD,
 				ACTIVEMQ_URL);
@@ -102,8 +138,10 @@ public class ProcessFindmaxReduceSegments {
 		session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		Destination destination_fromQueue = session.createQueue(QUEUE_FINDMAX_GATHER);
 		consumer = session.createConsumer(destination_fromQueue);
-		Destination destination_toQueue = session.createQueue(QUEUE_SPLITTER);
-		producer = session.createProducer(destination_toQueue);
+		Destination destination_toResultQueue = session.createQueue(QUEUE_RESULT_GATHER);
+		mapLineProducer = session.createProducer(destination_toResultQueue);
+		Destination destination_tofindMaxQueue = session.createQueue(QUEUE_FINDMAX_SPREADER);
+		findmaxproducer = session.createProducer(destination_tofindMaxQueue);
 
 	}
 
