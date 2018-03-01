@@ -12,4 +12,5 @@ public interface RegistrationService extends Remote {
 	Double getEpsilon(Integer calculationID) throws RemoteException;
 	public <P extends OrderedPoint> void  submitResult(int RDPid, int lineID, List<P> result) throws RemoteException;
 	public <P extends OrderedPoint> void  submitExpectation(int RDPid, int lineID) throws RemoteException;
+	
 }

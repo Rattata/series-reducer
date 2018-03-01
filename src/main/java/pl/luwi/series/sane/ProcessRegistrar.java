@@ -27,6 +27,8 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	Session session;
 	MessageProducer producer;
 	MessageConsumer consumer;
+	
+	
 
 	public static void main(String[] args) throws Exception {
 		ProcessRegistrar registrar = new ProcessRegistrar();
@@ -87,6 +89,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 			throw new IllegalArgumentException("Epsilon cannot be less then 0.");
 		}
 		int ID = calculationID++;
+		System.out.printf("received: assigned %d to remove points within %.2f of line with N:%d\n", ID, epsilon, points.size());
 		RDPContainer<?> container = new RDPContainer<>(ID, epsilon, points);
 		calculations.put(ID, container);
 
@@ -99,6 +102,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		// register calculation
 		// create latches
 		List<P> returnpoints = (List<P>) container.results();
+		System.out.printf("return: %d\n", ID );
 		calculations.remove(ID);
 		return returnpoints;
 	}
@@ -138,5 +142,4 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		RDPContainer<P> container = (RDPContainer<P>) calculations.get(RDPid);
 		container.signalResult(lineID);
 	}
-
 }
