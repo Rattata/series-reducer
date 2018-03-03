@@ -1,6 +1,4 @@
-package pl.luwi.series.sane;
-
-import static pl.luwi.series.sane.Constants.*;
+package pl.luwi.series.distributed;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -33,11 +31,12 @@ import javax.jms.MessageProducer;
 import javax.jms.ObjectMessage;
 import javax.jms.Session;
 
+import static pl.luwi.series.distributed.Constants.*;
 import static pl.luwi.series.reducer.Stopwatch.*;
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-import pl.luwi.series.sane.OrderedLine.RDPresult;
-import pl.luwi.series.sane.SearchTask.SearchResult;
+import pl.luwi.series.distributed.TaskOrderedLine.RDPresult;
+import pl.luwi.series.distributed.TaskSearch.SearchResult;
 
 public class ConsumerLines implements Runnable, IStoppable {
 
@@ -51,7 +50,7 @@ public class ConsumerLines implements Runnable, IStoppable {
 
 	RegistrationService registrar;
 
-	static ProcessLineSettings settings;
+	static ConsumerLinesSettings settings;
 	static ReentrantLock epsilonlock = new ReentrantLock();
 	static ConcurrentHashMap<Integer, Double> epsilonStore = new ConcurrentHashMap<>();
 
@@ -70,11 +69,11 @@ public class ConsumerLines implements Runnable, IStoppable {
 		this.line_producer = session.createProducer(lines);
 	}
 
-	Stack<OrderedLine<?>> self = new Stack<>();
+	Stack<TaskOrderedLine<?>> self = new Stack<>();
 
 	public void process() throws JMSException, RemoteException, InterruptedException {
 
-		OrderedLine<?> line = null;
+		TaskOrderedLine<?> line = null;
 		if (!self.isEmpty()) {
 			line = self.pop();
 		} else {
@@ -90,7 +89,7 @@ public class ConsumerLines implements Runnable, IStoppable {
 			if (!(received instanceof ObjectMessage)) {
 				System.err.println(" not an objectmessage!:\n" + received.toString());
 			}
-			line = (OrderedLine<?>) ((ObjectMessage) received).getObject();
+			line = (TaskOrderedLine<?>) ((ObjectMessage) received).getObject();
 		}
 
 		epsilonlock.lock();
@@ -108,10 +107,10 @@ public class ConsumerLines implements Runnable, IStoppable {
 				registrar.submitResult(line.RDPID, line.lineID, result.points);
 				System.out.printf("%d:%d:%d result\n", id, line.RDPID, line.lineID);
 			} else {
-				List<OrderedLine<?>> lines = result.lines;
+				List<TaskOrderedLine<?>> lines = result.lines;
 				lines.sort(biggestFirst);
-				OrderedLine<?> bigger = lines.get(0);
-				OrderedLine<?> smaller = lines.get(1);
+				TaskOrderedLine<?> bigger = lines.get(0);
+				TaskOrderedLine<?> smaller = lines.get(1);
 
 				bigger.lineID = line.lineID;
 				self.push(bigger);
@@ -130,19 +129,19 @@ public class ConsumerLines implements Runnable, IStoppable {
 			}
 		} else {
 			// solve completely if small
-			Stack<OrderedLine<?>> tempstack = new Stack<>();
+			Stack<TaskOrderedLine<?>> tempstack = new Stack<>();
 			List<OrderedPoint> returnablePoints = new ArrayList<>();
 			tempstack.push(line);
 			while (!tempstack.empty()) {
-				OrderedLine<?> templine = tempstack.pop();
+				TaskOrderedLine<?> templine = tempstack.pop();
 				RDPresult result = RDP(templine, epsilon);
 				if (result.points != null) {
 					for (OrderedPoint orderedPoint : (List<? extends OrderedPoint>) result.points) {
 						returnablePoints.add(orderedPoint);
 					}
 				} else {
-					List<OrderedLine<?>> lines = result.lines;
-					for (OrderedLine<?> orderedLine : lines) {
+					List<TaskOrderedLine<?>> lines = result.lines;
+					for (TaskOrderedLine<?> orderedLine : lines) {
 						tempstack.push(orderedLine);
 					}
 				}
@@ -153,8 +152,8 @@ public class ConsumerLines implements Runnable, IStoppable {
 		}
 	}
 
-	public RDPresult RDP(OrderedLine<?> line, double epsilon) throws InterruptedException {
-		SearchTask task = new SearchTask(line, settings.COMPUTATION_SEARCH_PARTS);
+	public RDPresult RDP(TaskOrderedLine<?> line, double epsilon) throws InterruptedException {
+		TaskSearch task = new TaskSearch(line, settings.COMPUTATION_SEARCH_PARTS);
 		SearchResult result = task.doSearch();
 		if (result.furthestDistance > epsilon) {
 			return line.asSplit(result.furthestIndex);
@@ -182,10 +181,10 @@ public class ConsumerLines implements Runnable, IStoppable {
 		
 	}
 
-	private static Comparator<OrderedLine<?>> biggestFirst = new Comparator<OrderedLine<?>>() {
+	private static Comparator<TaskOrderedLine<?>> biggestFirst = new Comparator<TaskOrderedLine<?>>() {
 
 		@Override
-		public int compare(OrderedLine<?> o1, OrderedLine<?> o2) {
+		public int compare(TaskOrderedLine<?> o1, TaskOrderedLine<?> o2) {
 			return o1.points.size() - o2.points.size();
 		}
 	};

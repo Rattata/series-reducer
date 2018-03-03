@@ -1,11 +1,11 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class OrderedLine<P extends OrderedPoint> implements Serializable {
+public class TaskOrderedLine<P extends OrderedPoint> implements Serializable {
     
 	public Integer RDPID;
 	public Integer lineID;
@@ -21,7 +21,7 @@ public class OrderedLine<P extends OrderedPoint> implements Serializable {
     private double exsy;
     private  double length;
        
-    public OrderedLine(List<P> points, int RDPID, int lineID)
+    public TaskOrderedLine(List<P> points, int RDPID, int lineID)
     {
     	this.RDPID = RDPID;
     	this.lineID = lineID;
@@ -35,7 +35,7 @@ public class OrderedLine<P extends OrderedPoint> implements Serializable {
         length = Math.sqrt(dx*dx + dy*dy);
     }
     
-    private OrderedLine(List<P> points, int RDPID){
+    private TaskOrderedLine(List<P> points, int RDPID){
     	this.RDPID = RDPID;
     	this.start = points.get(0);
     	this.points = points;
@@ -74,18 +74,18 @@ public class OrderedLine<P extends OrderedPoint> implements Serializable {
     }
     
     public RDPresult<P> asSplit(int index){
-    	List<OrderedLine<P>> lines = new ArrayList<>();
+    	List<TaskOrderedLine<P>> lines = new ArrayList<>();
     	List<P> a = new ArrayList<P>(points.subList(0, index + 1));
-    	lines.add(new OrderedLine<P>(a, this.RDPID));
+    	lines.add(new TaskOrderedLine<P>(a, this.RDPID));
     	List<P> b = new ArrayList<P>(points.subList(index, points.size()));
-    	lines.add(new OrderedLine<P>(b, this.RDPID));
+    	lines.add(new TaskOrderedLine<P>(b, this.RDPID));
     	return new RDPresult<P>(lines, null);
     }
     
     public class RDPresult<E extends OrderedPoint>{
-		List<OrderedLine<E>> lines;
+		List<TaskOrderedLine<E>> lines;
 		List<E> points;
-		public RDPresult(List<OrderedLine<E>> lines, List<E> points){
+		public RDPresult(List<TaskOrderedLine<E>> lines, List<E> points){
 			this.lines = lines;
 			this.points = points;
 		}

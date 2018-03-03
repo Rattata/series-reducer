@@ -1,4 +1,4 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.io.Serializable;
 

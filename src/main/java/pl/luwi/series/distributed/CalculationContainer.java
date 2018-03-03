@@ -1,4 +1,4 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.util.HashMap;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-public class RDPContainer<P extends OrderedPoint> {
+public class CalculationContainer<P extends OrderedPoint> {
 	public double Epsilon;
 	public int ID;
 	public CountDownLatch latch = new CountDownLatch(1);
@@ -42,7 +42,7 @@ public class RDPContainer<P extends OrderedPoint> {
 		return res;
 	}
 
-	public RDPContainer(int RDPID, double epsilon, OrderedLine<P> line) {
+	public CalculationContainer(int RDPID, double epsilon, TaskOrderedLine<P> line) {
 		this.Epsilon = epsilon;
 		this.ID = RDPID;
 		results = new HashMap<>((int) (line.points.size() * 0.75));

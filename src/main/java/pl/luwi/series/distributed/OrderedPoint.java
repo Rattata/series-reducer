@@ -1,4 +1,4 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import pl.luwi.series.reducer.Point;
 

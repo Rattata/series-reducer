@@ -1,4 +1,4 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -7,11 +7,11 @@ import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import pl.luwi.series.sane.SearchTask.SearchSegment;
+import pl.luwi.series.distributed.TaskSearch.SearchSegment;
 
-public class SearchTask {
+public class TaskSearch {
 	
-	private OrderedLine<?> line;
+	private TaskOrderedLine<?> line;
 
 	private CountDownLatch latch;
 	
@@ -20,8 +20,8 @@ public class SearchTask {
 	private LinkedBlockingQueue<SearchSegment> produceTo;
 	
 	
-	public SearchTask(OrderedLine<?> line, int parts){
-		produceTo = ConsumerSearchTask.getQueue();
+	public TaskSearch(TaskOrderedLine<?> line, int parts){
+		produceTo = ConsumerSearch.getQueue();
 		this.line = line;
 		latch = new CountDownLatch(parts);
 		int chunkSize = (int) Math.ceil(line.points.size() / parts);
@@ -33,7 +33,7 @@ public class SearchTask {
 		}
 	}
 	
-	public OrderedLine<?> getLine() {
+	public TaskOrderedLine<?> getLine() {
 		return line;
 	}
 	
@@ -49,7 +49,7 @@ public class SearchTask {
 	
 	
 	public class SearchSegment {
-		private SearchTask master;
+		private TaskSearch master;
 		
 		double furthestDistance = Double.MIN_VALUE;
 		int furthestIndex = -1;
@@ -57,7 +57,7 @@ public class SearchTask {
 		int startIndex;
 		int endIndex;
 		
-		public SearchSegment(SearchTask master, int startIndex, int endIndex) {
+		public SearchSegment(TaskSearch master, int startIndex, int endIndex) {
 			this.master = master;
 			this.startIndex = startIndex;
 			this.endIndex = endIndex;

@@ -1,10 +1,10 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-public interface UpdatableNode extends Remote {
-	public void update(ProcessLineSettings update) throws RemoteException;
+public interface IUpdatableNode extends Remote {
+	public void update(ConsumerLinesSettings update) throws RemoteException;
 
 	public void stop() throws RemoteException, Exception;
 

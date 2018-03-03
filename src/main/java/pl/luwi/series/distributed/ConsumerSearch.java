@@ -1,11 +1,11 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import pl.luwi.series.sane.SearchTask.SearchSegment;
+import pl.luwi.series.distributed.TaskSearch.SearchSegment;
 
-public class ConsumerSearchTask implements Runnable, IStoppable {
+public class ConsumerSearch implements Runnable, IStoppable {
 
 	private static LinkedBlockingQueue<SearchSegment> queue = new LinkedBlockingQueue<>();
 	

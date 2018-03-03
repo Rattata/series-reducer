@@ -1,8 +1,8 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 import java.io.Serializable;
 
-public class ProcessLineSettings implements Serializable {
+public class ConsumerLinesSettings implements Serializable {
 	int id = 0;
 	public int COMPUTATION_THRESHOLD_SIZESPLIT = Constants.COMPUTATION_THRESHOLD_SIZESPLIT;
 	public double COMPUTATION_THRESHOLD_SIZESEARCH = Constants.COMPUTATION_THRESHOLD_SIZESEARCH;

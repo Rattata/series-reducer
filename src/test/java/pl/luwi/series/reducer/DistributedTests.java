@@ -28,27 +28,27 @@ import java.util.Arrays;
 
 import org.testng.annotations.Test;
 
-import pl.luwi.series.sane.IndexedPoint;
-import pl.luwi.series.sane.OrderedPoint;
-import pl.luwi.series.sane.ProcessLineSettings;
-import pl.luwi.series.sane.ProcessRegistrar;
-import pl.luwi.series.sane.ProcessingNode;
-import pl.luwi.series.sane.RegistrationService;
-import pl.luwi.series.sane.UpdatableNode;
+import pl.luwi.series.distributed.IndexedPoint;
+import pl.luwi.series.distributed.OrderedPoint;
+import pl.luwi.series.distributed.ConsumerLinesSettings;
+import pl.luwi.series.distributed.ProcessingRegistrar;
+import pl.luwi.series.distributed.ProcessingNode;
+import pl.luwi.series.distributed.RegistrationService;
+import pl.luwi.series.distributed.IUpdatableNode;
 
-public class SaneDistributedTests {
+public class DistributedTests {
 	@Test
 	public void SimpleRun() {
 		try {
-			RegistrationService resv = ProcessRegistrar.connect();
+			RegistrationService resv = ProcessingRegistrar.connect();
 			List<IndexedPoint> n = create(40000);
-			ProcessLineSettings settings = new ProcessLineSettings();
+			ConsumerLinesSettings settings = new ConsumerLinesSettings();
 			settings.COMPUTATION_CONSUMERS = 2;
 			settings.COMPUTATION_SEARCHERS = 2;
 			settings.COMPUTATION_SEARCH_PARTS = 3;
 			settings.COMPUTATION_THRESHOLD_SIZESPLIT = 500;
 
-			UpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
+			IUpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
 //			 UpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
 			 node1.update(settings);
 //			 node2.update(settings);
@@ -62,15 +62,15 @@ public class SaneDistributedTests {
 	
 	List<Integer> N = Arrays.asList(new Integer[] { 10000, 40000, 160000 });
 	List<Integer> split_thresholds = Arrays.asList(new Integer[] {500, 2000, 8000});
-	List<Triplet<Integer,Integer,Integer>> lineSearchRatio = new ArrayList<SaneDistributedTests.Triplet<Integer,Integer,Integer>>();
+	List<Triplet<Integer,Integer,Integer>> lineSearchRatio = new ArrayList<DistributedTests.Triplet<Integer,Integer,Integer>>();
 	
 	@Test
 	public void HappyFlow() {
 		try {
 
-			RegistrationService resv = ProcessRegistrar.connect();
-			UpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
-			 UpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
+			RegistrationService resv = ProcessingRegistrar.connect();
+			IUpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
+			 IUpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
 
 			LocalDateTime now = LocalDateTime.now();
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd-mmss");
@@ -83,10 +83,10 @@ public class SaneDistributedTests {
 					CSVFormat.DEFAULT.withHeader("split", "n",  "line_consumers", "line_searchers", "search_segments", "time_taken"));
 
 			int samples = 20;
-			ProcessLineSettings settings = null;
+			ConsumerLinesSettings settings = null;
 			for (Triplet< Integer, Integer, Triplet<Integer, Integer,Integer>> triple : testSetup()) {
 				// search, split, n, {consumer, searcher}
-				settings = new ProcessLineSettings();
+				settings = new ConsumerLinesSettings();
 				settings.COMPUTATION_THRESHOLD_SIZESPLIT = triple.first;
 				settings.COMPUTATION_CONSUMERS = triple.third.first;
 				settings.COMPUTATION_SEARCHERS = triple.third.second;

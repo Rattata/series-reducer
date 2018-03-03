@@ -1,4 +1,4 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
 public class Constants {
 	public static final String ACTIVEMQ_URL = "failover:(tcp://192.168.1.39:61616,localhost:8161)";

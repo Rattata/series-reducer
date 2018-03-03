@@ -1,6 +1,6 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
-import static pl.luwi.series.sane.Constants.*;
+import static pl.luwi.series.distributed.Constants.*;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -22,7 +22,7 @@ import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-public class ProcessRegistrar extends UnicastRemoteObject implements RegistrationService {
+public class ProcessingRegistrar extends UnicastRemoteObject implements RegistrationService {
 
 	Session session;
 	MessageProducer producer;
@@ -31,7 +31,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	
 
 	public static void main(String[] args) throws Exception {
-		ProcessRegistrar registrar = new ProcessRegistrar();
+		ProcessingRegistrar registrar = new ProcessingRegistrar();
 		Registry registry;
 		// start the registry service on this host
 		try {
@@ -52,7 +52,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		}
 	}
 
-	public ProcessRegistrar() throws JMSException, RemoteException {
+	public ProcessingRegistrar() throws JMSException, RemoteException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ACTIVEMQ_USER, ACTIVEMQ_PASSWORD,
 				ACTIVEMQ_URL);
 
@@ -79,7 +79,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		return registrationService;
 	}
 
-	HashMap<Integer, RDPContainer<?>> calculations = new HashMap<>();
+	HashMap<Integer, CalculationContainer<?>> calculations = new HashMap<>();
 	int calculationID = 0;
 
 	@Override
@@ -91,8 +91,8 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		int ID = calculationID++;
 		System.out.printf("received: assigned %d to remove points within %.2f of line with N:%d\n", ID, epsilon, points.size());
 
-		OrderedLine<P> message = new OrderedLine<>(points, ID, getLineID());
-		RDPContainer<P> container = new RDPContainer<>(ID, epsilon, message);
+		TaskOrderedLine<P> message = new TaskOrderedLine<>(points, ID, getLineID());
+		CalculationContainer<P> container = new CalculationContainer<>(ID, epsilon, message);
 		calculations.put(ID, container);
 		producer.send(session.createObjectMessage(message));
 
@@ -129,7 +129,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	@SuppressWarnings("unchecked")
 	@Override
 	public <P extends OrderedPoint> void submitResult(int RDPid, int lineID, List<P> result) {
-		RDPContainer<P> container = (RDPContainer<P>) calculations.get(RDPid);
+		CalculationContainer<P> container = (CalculationContainer<P>) calculations.get(RDPid);
 		boolean done = container.appendResult(lineID, result);
 		if (done) {
 			container.latch.countDown();
@@ -139,7 +139,7 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 	@SuppressWarnings("unchecked")
 	@Override
 	public <P extends OrderedPoint> void submitExpectation(int RDPid, int lineID) {
-		RDPContainer<P> container = (RDPContainer<P>) calculations.get(RDPid);
+		CalculationContainer<P> container = (CalculationContainer<P>) calculations.get(RDPid);
 		container.signalResult(lineID);
 	}
 }

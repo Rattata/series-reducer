@@ -1,12 +1,12 @@
-package pl.luwi.series.sane;
+package pl.luwi.series.distributed;
 
-import static pl.luwi.series.sane.Constants.ACTIVEMQ_PASSWORD;
-import static pl.luwi.series.sane.Constants.ACTIVEMQ_URL;
-import static pl.luwi.series.sane.Constants.ACTIVEMQ_USER;
-import static pl.luwi.series.sane.Constants.QUEUE_LINES;
-import static pl.luwi.series.sane.Constants.REGISTRATION_MASTER;
-import static pl.luwi.series.sane.Constants.REGISTRATION_NAME;
-import static pl.luwi.series.sane.Constants.REGISTRATION_PORT;
+import static pl.luwi.series.distributed.Constants.ACTIVEMQ_PASSWORD;
+import static pl.luwi.series.distributed.Constants.ACTIVEMQ_URL;
+import static pl.luwi.series.distributed.Constants.ACTIVEMQ_USER;
+import static pl.luwi.series.distributed.Constants.QUEUE_LINES;
+import static pl.luwi.series.distributed.Constants.REGISTRATION_MASTER;
+import static pl.luwi.series.distributed.Constants.REGISTRATION_NAME;
+import static pl.luwi.series.distributed.Constants.REGISTRATION_PORT;
 
 import java.rmi.AlreadyBoundException;
 import java.rmi.Remote;
@@ -28,12 +28,12 @@ import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode{
+public class ProcessingNode extends UnicastRemoteObject implements IUpdatableNode{
 	
 	//lifecycle 1, init, update
 	ExecutorService executor;
 	List<IStoppable> stoppableConsumers;
-	ProcessLineSettings settings;
+	ConsumerLinesSettings settings;
 
 	//lifecycle 2, destruction
 	RegistrationService registrar;
@@ -46,7 +46,7 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 	public static void main(String[] args){
 		try {
 			ProcessingNode node = new ProcessingNode();
-			node.init(new ProcessLineSettings());
+			node.init(new ConsumerLinesSettings());
 			node.start();
 			String host = args.length > 0 ? args[0] : "192.168.1.39";
 			System.setProperty("java.rmi.server.hostname",host);
@@ -71,7 +71,7 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 		}
 	}
 	
-	public void init(ProcessLineSettings settings) throws Exception{	
+	public void init(ConsumerLinesSettings settings) throws Exception{	
 		this.settings = settings;
 	};
 	
@@ -93,7 +93,7 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 			executor.submit(line);
 		}
 		for(int i = 0; i < settings.COMPUTATION_SEARCHERS; i++){
-			ConsumerSearchTask searcher = new ConsumerSearchTask();
+			ConsumerSearch searcher = new ConsumerSearch();
 			stoppableConsumers.add(searcher);
 			executor.submit(searcher);
 		}
@@ -111,13 +111,13 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 	}
 	
 	
-	public static UpdatableNode connect(String host) {
-		UpdatableNode registrationService = null;
+	public static IUpdatableNode connect(String host) {
+		IUpdatableNode registrationService = null;
 		try {
 			Registry r = LocateRegistry.getRegistry(host, REGISTRATION_PORT);
 			Remote obj = r.lookup(Constants.UPDATEABLE_NAME);
 			System.out.println(obj);
-			registrationService = (UpdatableNode) obj;
+			registrationService = (IUpdatableNode) obj;
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -131,14 +131,14 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 		this.connectionFactory.setUseAsyncSend(true);
 		this.connectionFactory.setAlwaysSessionAsync(true);
 		this.connection = connectionFactory.createConnection();
-		this.registrar = ProcessRegistrar.connect();
+		this.registrar = ProcessingRegistrar.connect();
 		connection.start();
 		session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		destination_fromQueue = session.createQueue(QUEUE_LINES);
 	}
 
 	@Override
-	public void update(ProcessLineSettings update) throws RemoteException {
+	public void update(ConsumerLinesSettings update) throws RemoteException {
 		try {
 			System.out.printf("received settings update %d, restarting workers\n", update.id);
 			stop();
