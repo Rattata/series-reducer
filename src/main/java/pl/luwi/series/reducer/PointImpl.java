@@ -1,10 +1,17 @@
 package pl.luwi.series.reducer;
 
+import java.io.Serializable;
+
 import pl.luwi.series.reducer.Point;
 
-public class PointImpl implements Point {
+public class PointImpl implements Point, Serializable {
     
-    private double x;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	private double x;
     
     private double y;
     

@@ -1,50 +1,25 @@
 package pl.luwi.series.reducer;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Stack;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
+
+import org.jfree.data.xy.YIntervalDataItem;
+
+import pl.luwi.series.tasks.FindMaximumSpreader;
+import pl.luwi.series.tasks.CommunicatingThread;
+import pl.luwi.series.tasks.CommunicatingThread.STATE;
+import pl.luwi.series.tasks.ConcurrentConstants;
+import pl.luwi.series.tasks.FindMaximum;
+import pl.luwi.series.tasks.FindMaximumGather;
+import pl.luwi.series.tasks.FindMaximumProcessor;
+import pl.luwi.series.tasks.ReduceTask;
 
 public class ConcurrentSeriesReducer {
 
-	private static class Work<P extends Point> {
-		Line<P> line;
-		List<P> points;
-
-		public Work(Line<P> line, List<P> points) {
-			this.line = line;
-			this.points = points;
-		}
-	}
-	
-	/**
-	 * What N and above makes single-core vs multicore vs distributed more profitable?
-	 * ["finding largest distance", "splitting array", "reassemble array"] 
-	 */
-//	amdahl
-	private static final int find_multicore = 12;
-	private static final int split_multicore = 20;
-	private static final int reassemble_multicore = 20;
-
-//	gustafson
-	private static final int find_distributed = 12;
-	private static final int split_distributed = 20;
-	private static final int reassemble_distributed = 20;
-
-	
-	private static final int timeout_ns_multicore = 1500;
-	private static final int timeout_ms_distributed = 1500;
-	
-	
-	
 	/**
 	 * Reduces number of points in given series using Ramer-Douglas-Peucker
 	 * algorithm.
@@ -54,121 +29,97 @@ public class ConcurrentSeriesReducer {
 	 *            {@link Point} interface)
 	 * @param epsilon
 	 *            allowed margin of the resulting curve, has to be > 0
+	 * @throws ExecutionException
+	 * @throws InterruptedException
 	 */
-	public static <P extends Point> List<P> reduce(List<P> points, double epsilon) {
-		if (epsilon < 0) {
-			throw new IllegalArgumentException("Epsilon cannot be less then 0.");
+	public static <P extends Point> List<P> reduce(List<P> points, double epsilon, int findmaxThreads)
+			throws InterruptedException, ExecutionException {
+		if(epsilon < 0){
+			throw new IllegalArgumentException("Epsilon must be > 0");
 		}
-		Stack<OrderedLineSegment> work = new Stack<OrderedLineSegment>();
-		work.push(new OrderedLineSegment(points));
-
-		OrderedPoint[] result = new OrderedPoint[points.size()];
-		
-		ExecutorService executor = Executors.newFixedThreadPool(3);
-		PriorityBlockingQueue<OrderedLineSegment> workQueue = new PriorityBlockingQueue<>(points.size() / 16);
-		
-		Callable<Void> task = () -> {return null;};
-		
-		Future<Void> future = executor.submit(() -> {
-			try {
-				OrderedLineSegment segment  = workQueue.poll(timeout_ns_multicore, TimeUnit.NANOSECONDS);
-				TimeUnit.SECONDS.sleep(2);
-				return null;
-			} catch (InterruptedException e) {
-				System.out.println("err");
-			}
-			return null;
-		});
-	
-		while (!work.isEmpty()) {
-			OrderedLineSegment segment = work.pop();
-
-			double furthestPointDistance = 0.0;
-			int furthestPointIndex = 0;
-			for (int i = 0; i < segment.getPoints().size() - 1; i++) {
-				double distance = segment.distance(segment.getPoints().get(i));
-				if (distance > furthestPointDistance) {
-					furthestPointDistance = distance;
-					furthestPointIndex = i;
-				}
-			}
-
-			if (furthestPointDistance > epsilon) {
-				List<OrderedPoint> firstPoints = segment.getPoints().subList(0, furthestPointIndex + 1);
-				OrderedLineSegment firstSegment = new OrderedLineSegment(firstPoints, segment.getStart(),
-						segment.getPoints().get(furthestPointIndex));
-
-				List<OrderedPoint> secondPoints = segment.getPoints().subList(furthestPointIndex,
-						segment.getPoints().size());
-				OrderedLineSegment secondSegment = new OrderedLineSegment(secondPoints,
-						segment.getPoints().get(furthestPointIndex), segment.getEnd());
-
-				work.push(firstSegment);
-				work.push(secondSegment);
-			} else {
-				OrderedPoint start = segment.getStart();
-				OrderedPoint end = segment.getEnd();
-				if (result[end.GetIndex()] == null) {
-					result[end.GetIndex()] = end;
-				}
-
-				if (result[start.GetIndex()] == null) {
-					result[start.GetIndex()] = start;
-				}
-			}
+		if(findmaxThreads < 1){
+			throw new IllegalArgumentException("minimum of 1 find thread");
 		}
-		ConcurrentHashMap<Integer, OrderedPoint> resultmap = new ConcurrentHashMap<>();
-		// collect points
-		List<P> reducedPoints = new ArrayList<P>();
-		for (int i = 0; i < result.length; i++) {
-			if (result[i] != null) {
-				reducedPoints.add(points.get(result[i].GetIndex()));
-			}
+		//monitoring
+		List<CommunicatingThread<?, ?>> threads = new ArrayList<>();
+		List<LinkedBlockingQueue<?>> queues = new ArrayList<>();
+
+		ConcurrentHashMap<Integer,OrderedPoint<?>> results = new ConcurrentHashMap<>();
+		
+		LinkedBlockingQueue<PointSegment> nonmaxedSegments = new LinkedBlockingQueue<>();
+		nonmaxedSegments.add(new PointSegment(points));
+		queues.add(nonmaxedSegments);
+		
+		
+		LinkedBlockingQueue<PointSegment> maxedSegments = new LinkedBlockingQueue<>();
+		queues.add(maxedSegments);
+		
+		LinkedBlockingQueue<List<FindMaximum>> findMaximumFirst = new LinkedBlockingQueue<>();
+		LinkedBlockingQueue<List<FindMaximum>> findMaximumTemp = findMaximumFirst;
+		queues.add(findMaximumFirst);
+		LinkedBlockingQueue<List<FindMaximum>> findMaximumLast = null;
+		List<FindMaximumProcessor> findMaximumProcessors = new ArrayList<>();
+		for(int i = 0 ;i < findmaxThreads; i++){
+			
+			findMaximumLast = new LinkedBlockingQueue<>();
+			queues.add(findMaximumLast);
+			
+			FindMaximumProcessor processor = new FindMaximumProcessor(findMaximumTemp, findMaximumLast, i, threads);
+			findMaximumTemp = findMaximumLast;		
+			
+			findMaximumProcessors.add(processor);
+			threads.add(processor);
 		}
-		return reducedPoints;
+				
+		ReduceTask splitter = new ReduceTask(maxedSegments, nonmaxedSegments, epsilon, results);
+		
+		threads.add(splitter);
+		FindMaximumGather gatherer = new FindMaximumGather(findMaximumLast, maxedSegments);
+		threads.add(gatherer);
+		FindMaximumSpreader spreader = new FindMaximumSpreader(nonmaxedSegments, findMaximumFirst, gatherer, 5, findMaximumProcessors);
+		threads.add(spreader);
+		splitter.setPeers(threads);
+		for (CommunicatingThread<?, ?> thread : threads) {
+			thread.setPeers(threads);
+			thread.start();
+		}
+		 while(queues.stream().anyMatch(x -> ! x.isEmpty()) || threads.stream().anyMatch(x -> x.getCurrentState().equals(STATE.RUNNING))){
+			 //spinwait... :(
+			 Thread.sleep(0, ConcurrentConstants.TIMEOUT_uS);
+			 Thread.yield();
+		 }
+		 int summedMisses = 0;
+		 for (CommunicatingThread<?, ?> thread : threads) {
+			summedMisses += thread.getCommMisses();
+			System.out.println(thread.getClass().getName() + ": " + thread.getCommMisses());
+			thread.join();
+		}
+		System.out.println("missed" + summedMisses);
+		return results.values().parallelStream().sorted().map(x -> (P)x.getPoint()).collect(Collectors.toList());
+
 	}
-	
-	private class solveResult{
-		public OrderedLineSegment[] newsegments;
-		public OrderedPoint[] points;
-		
-		public solveResult(OrderedLineSegment[] newssegments) {
-			this.newsegments = newssegments;
-		}
-		
-		public solveResult(OrderedPoint[] newpoints) {
-			this.points = newpoints;
-		} 
-	}
-	
-	
-	private solveResult solve(OrderedLineSegment segment, double epsilon){
 
-		double furthestPointDistance = 0.0;
-		int furthestPointIndex = 0;
-		for (int i = 0; i < segment.getPoints().size() - 1; i++) {
-			double distance = segment.distance(segment.getPoints().get(i));
-			if (distance > furthestPointDistance) {
-				furthestPointDistance = distance;
-				furthestPointIndex = i;
+	public static void main(String[] args) {
+		ConcurrentSeriesReducer reducer = new ConcurrentSeriesReducer();
+
+		ArrayList<MyPoint> points = new ArrayList<>();
+		
+		for (int i = 0; i < 1000000; i++) {
+			points.add(new MyPoint());
+		}
+		try {
+			for(int i = 0 ;i < 10; i++){
+				System.out.println("\n\n\n");
+				List<MyPoint> reducedPoints = ConcurrentSeriesReducer.reduce(points, 1, 5);
+//				for(int j = 0 ;j < reducedPoints.size(); j++){
+//					System.out.print(reducedPoints.get(j).toString());
+//				}
+				System.out.println("original size: "+ points.size() + "\treduced:" + reducedPoints.size() +"\n\n");
+				Runtime.getRuntime().gc();
+				Thread.sleep(10);
 			}
-		}
-		if (furthestPointDistance > epsilon) {
-			List<OrderedPoint> firstPoints = segment.getPoints().subList(0, furthestPointIndex + 1);
-			OrderedLineSegment firstSegment = new OrderedLineSegment(firstPoints, segment.getStart(),
-					segment.getPoints().get(furthestPointIndex));
-
-			List<OrderedPoint> secondPoints = segment.getPoints().subList(furthestPointIndex,
-					segment.getPoints().size());
-			OrderedLineSegment secondSegment = new OrderedLineSegment(secondPoints,
-					segment.getPoints().get(furthestPointIndex), segment.getEnd());
-			solveResult result = new solveResult(new OrderedLineSegment[]{firstSegment, secondSegment});
-			return result;
-		} else {
-			OrderedPoint start = segment.getStart();
-			OrderedPoint end = segment.getEnd();
-			solveResult result = new solveResult(new OrderedPoint[]{start, end});
-			return result;
+		} catch (Exception e) {
+			// TODO: handle exception
 		}
 	}
 

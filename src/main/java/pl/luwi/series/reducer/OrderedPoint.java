@@ -1,25 +1,34 @@
 package pl.luwi.series.reducer;
 
-public class OrderedPoint implements Point {
+public class OrderedPoint<P extends Point> implements Point, Comparable<OrderedPoint<P>> {
+	private P point;
 
-	public Point originalPoint;
-	private int Index;
+	private int index;
 	
-	public OrderedPoint(Point point, int index) {
-		this.Index = index;
-		this.originalPoint = point;
+	public OrderedPoint(P point, int index){
+		this.point = point;
+		this.index = index;
+	}
+	
+	public P getPoint() {
+		return point;
 	}
 	
 	public double getX() {
-		return originalPoint.getX();
+		return point.getX();
 	}
 
 	public double getY() {
-		return originalPoint.getY();
+		return point.getY();
+	}
+	
+	public int getIndex() {
+		return index;
 	}
 
-	public int GetIndex() {
-		return Index;
+	@Override
+	public int compareTo(OrderedPoint<P> o) {
+		return Integer.compare(index, o.getIndex());
 	}
 	
 }
