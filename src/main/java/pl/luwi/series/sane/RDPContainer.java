@@ -34,7 +34,7 @@ public class RDPContainer<P extends OrderedPoint> {
 		for (P p : result) {
 			results.put(p.getI(), p);			
 		}
-		if(counter.isEmpty() && ! results.isEmpty()){
+		if(counter.isEmpty()){
 			latch.countDown();
 			res = true;
 		}
@@ -42,11 +42,12 @@ public class RDPContainer<P extends OrderedPoint> {
 		return res;
 	}
 
-	public RDPContainer(int RDPID, double epsilon, List<P> points) {
+	public RDPContainer(int RDPID, double epsilon, OrderedLine<P> line) {
 		this.Epsilon = epsilon;
 		this.ID = RDPID;
-		results = new HashMap<>((int) (points.size() * 0.75));
-		counter = new HashMap<>((int) (points.size() * 0.75));
+		results = new HashMap<>((int) (line.points.size() * 0.75));
+		counter = new HashMap<>((int) (line.points.size() * 0.75));
+		counter.put(line.lineID, new Object());
 	}
 	
 	public List<P> results(){

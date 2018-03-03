@@ -48,7 +48,7 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 			ProcessingNode node = new ProcessingNode();
 			node.init(new ProcessLineSettings());
 			node.start();
-			String host = args.length > 0 ? args[0] : "192.168.1.29";
+			String host = args.length > 0 ? args[0] : "192.168.1.39";
 			System.setProperty("java.rmi.server.hostname",host);
 			System.out.printf("logical cores: %d \n", Runtime.getRuntime().availableProcessors());
 			Registry registry;
@@ -86,7 +86,7 @@ public class ProcessingNode extends UnicastRemoteObject implements UpdatableNode
 		
 		System.out.printf("started  %d messageconsumers and %d searchers\n", settings.COMPUTATION_CONSUMERS,
 				settings.COMPUTATION_SEARCHERS);
-		
+		ConsumerLines.settings = settings;
 		for (int i = 0; i < settings.COMPUTATION_CONSUMERS; i++) {
 			ConsumerLines line = new ConsumerLines(i, executor, registrar, connection, destination_fromQueue);
 			stoppableConsumers.add(line);

@@ -90,10 +90,10 @@ public class ProcessRegistrar extends UnicastRemoteObject implements Registratio
 		}
 		int ID = calculationID++;
 		System.out.printf("received: assigned %d to remove points within %.2f of line with N:%d\n", ID, epsilon, points.size());
-		RDPContainer<?> container = new RDPContainer<>(ID, epsilon, points);
-		calculations.put(ID, container);
 
 		OrderedLine<P> message = new OrderedLine<>(points, ID, getLineID());
+		RDPContainer<P> container = new RDPContainer<>(ID, epsilon, message);
+		calculations.put(ID, container);
 		producer.send(session.createObjectMessage(message));
 
 		// await final result

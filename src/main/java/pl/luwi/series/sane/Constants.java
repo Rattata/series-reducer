@@ -1,11 +1,11 @@
 package pl.luwi.series.sane;
 
 public class Constants {
-	public static final String ACTIVEMQ_URL = "failover:(tcp://192.168.1.29:61616,localhost:8161)";
+	public static final String ACTIVEMQ_URL = "failover:(tcp://192.168.1.39:61616,localhost:8161)";
 	public static final String ACTIVEMQ_USER = "admin";
 	public static final String ACTIVEMQ_PASSWORD = "admin";
 
-	public static final String REGISTRATION_MASTER = "192.168.1.29";
+	public static final String REGISTRATION_MASTER = "192.168.1.39";
 	public static final int REGISTRATION_PORT = 1200;
 	public static final String REGISTRATION_NAME = "ProcessRegistration2";
 	public static final int REGISTRATION_ID_BATCHSIZE = 1000;

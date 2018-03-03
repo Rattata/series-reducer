@@ -51,7 +51,7 @@ public class ConsumerLines implements Runnable, IStoppable {
 
 	RegistrationService registrar;
 
-	static ProcessLineSettings settings = new ProcessLineSettings();
+	static ProcessLineSettings settings;
 	static ReentrantLock epsilonlock = new ReentrantLock();
 	static ConcurrentHashMap<Integer, Double> epsilonStore = new ConcurrentHashMap<>();
 
