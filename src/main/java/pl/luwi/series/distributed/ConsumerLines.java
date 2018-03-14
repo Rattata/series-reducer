@@ -1,5 +1,6 @@
 package pl.luwi.series.distributed;
 
+import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -60,17 +61,18 @@ public class ConsumerLines implements Runnable, IStoppable {
 	ExecutorService executor;
 
 	public ConsumerLines(int id, ExecutorService executor, RegistrationService registrar, Connection connection,
-			Destination lines) throws JMSException, RemoteException {
+			Destination lines, Destination results) throws JMSException, RemoteException {
 		this.id = id;
 		this.executor = executor;
 		this.registrar = registrar;
 		this.session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		this.line_consumer = session.createConsumer(lines);
 		this.line_producer = session.createProducer(lines);
+		this.result_producer = session.createProducer(results);
 	}
 
 	Stack<TaskOrderedLine<?>> self = new Stack<>();
-
+	
 	public void process() throws JMSException, RemoteException, InterruptedException {
 
 		TaskOrderedLine<?> line = null;
@@ -79,9 +81,9 @@ public class ConsumerLines implements Runnable, IStoppable {
 		} else {
 			Message received = null;
 			try {
-				received = line_consumer.receive(100);
+				received = line_consumer.receive();
 			} catch (Exception e) {
-				// TODO: handle exception
+				e.printStackTrace();
 			}
 			if (received == null) {
 				return;
@@ -104,7 +106,8 @@ public class ConsumerLines implements Runnable, IStoppable {
 			// pass around the line if large
 			RDPresult result = RDP(line, epsilon);
 			if (result.points != null) {
-				registrar.submitResult(line.RDPID, line.lineID, result.points);
+				LineResult lineresult = new LineResult(line.RDPID, line.lineID, result.points);
+				result_producer.send(session.createObjectMessage( lineresult));
 				System.out.printf("%d:%d:%d result\n", id, line.RDPID, line.lineID);
 			} else {
 				List<TaskOrderedLine<?>> lines = result.lines;
@@ -147,7 +150,8 @@ public class ConsumerLines implements Runnable, IStoppable {
 				}
 			}
 			returnablePoints = returnablePoints.stream().distinct().collect(Collectors.toList());
-			registrar.submitResult(line.RDPID, line.lineID, returnablePoints);
+			LineResult result = new LineResult(line.RDPID, line.lineID, returnablePoints);
+			result_producer.send(session.createObjectMessage( result));
 			System.out.printf("%d:%d:%d result\n", id, line.RDPID, line.lineID);
 		}
 	}

@@ -16,8 +16,10 @@ import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
 import javax.jms.JMSException;
+import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
+import javax.jms.ObjectMessage;
 import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -50,6 +52,9 @@ public class ProcessingRegistrar extends UnicastRemoteObject implements Registra
 			registry.bind(REGISTRATION_NAME, registrar);
 			registrationService = (RegistrationService) registry.lookup(REGISTRATION_NAME);
 		}
+		while(true){
+			registrar.process();
+		}
 	}
 
 	public ProcessingRegistrar() throws JMSException, RemoteException {
@@ -62,8 +67,10 @@ public class ProcessingRegistrar extends UnicastRemoteObject implements Registra
 		// Destination destination_fromQueue = session.createQueue(QUEUE_LINES);
 		// consumer = session.createConsumer(destination_fromQueue);
 
-		Destination destination_toResultQueue = session.createQueue(QUEUE_LINES);
-		producer = session.createProducer(destination_toResultQueue);
+		Destination destination_toLineQueue = session.createQueue(QUEUE_LINES);
+		Destination destination_fromResultQueue = session.createQueue(QUEUE_RESULTS);
+		producer = session.createProducer(destination_toLineQueue);
+		consumer = session.createConsumer(destination_fromResultQueue);
 	}
 
 	public static RegistrationService connect() {
@@ -108,7 +115,15 @@ public class ProcessingRegistrar extends UnicastRemoteObject implements Registra
 	}
 
 	int lineIDs = 0;
-
+	
+	public void process() throws Exception{
+		Message message =consumer.receive();
+		if(message instanceof ObjectMessage){
+			LineResult result = (LineResult)((ObjectMessage)message).getObject();
+			submitResult(result.RPDID, result.lineID, result.results);
+		}
+	}
+	
 	@Override
 	public synchronized List<Integer> getLineIDs() {
 		lineIDs += REGISTRATION_ID_BATCHSIZE;

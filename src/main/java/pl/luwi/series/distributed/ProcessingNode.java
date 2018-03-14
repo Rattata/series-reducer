@@ -7,6 +7,7 @@ import static pl.luwi.series.distributed.Constants.QUEUE_LINES;
 import static pl.luwi.series.distributed.Constants.REGISTRATION_MASTER;
 import static pl.luwi.series.distributed.Constants.REGISTRATION_NAME;
 import static pl.luwi.series.distributed.Constants.REGISTRATION_PORT;
+import static pl.luwi.series.distributed.Constants.QUEUE_RESULTS;
 
 import java.rmi.AlreadyBoundException;
 import java.rmi.Remote;
@@ -41,6 +42,7 @@ public class ProcessingNode extends UnicastRemoteObject implements IUpdatableNod
 	ActiveMQConnectionFactory connectionFactory;
 	Session session;
 	Destination destination_fromQueue;
+	Destination destination_fromResults;
 	
 	
 	public static void main(String[] args){
@@ -88,7 +90,7 @@ public class ProcessingNode extends UnicastRemoteObject implements IUpdatableNod
 				settings.COMPUTATION_SEARCHERS);
 		ConsumerLines.settings = settings;
 		for (int i = 0; i < settings.COMPUTATION_CONSUMERS; i++) {
-			ConsumerLines line = new ConsumerLines(i, executor, registrar, connection, destination_fromQueue);
+			ConsumerLines line = new ConsumerLines(i, executor, registrar, connection, destination_fromQueue,destination_fromResults);
 			stoppableConsumers.add(line);
 			executor.submit(line);
 		}
@@ -135,6 +137,7 @@ public class ProcessingNode extends UnicastRemoteObject implements IUpdatableNod
 		connection.start();
 		session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		destination_fromQueue = session.createQueue(QUEUE_LINES);
+		destination_fromResults = session.createQueue(QUEUE_RESULTS);
 	}
 
 	@Override

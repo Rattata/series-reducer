@@ -41,36 +41,36 @@ public class DistributedTests {
 	public void SimpleRun() {
 		try {
 			RegistrationService resv = ProcessingRegistrar.connect();
-			List<IndexedPoint> n = create(40000);
+			List<IndexedPoint> n = create(1000000);
 			ConsumerLinesSettings settings = new ConsumerLinesSettings();
 			settings.COMPUTATION_CONSUMERS = 2;
 			settings.COMPUTATION_SEARCHERS = 2;
 			settings.COMPUTATION_SEARCH_PARTS = 3;
-			settings.COMPUTATION_THRESHOLD_SIZESPLIT = 500;
+			settings.COMPUTATION_THRESHOLD_SIZESPLIT = 8000;
 
 			IUpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
-//			 UpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
-			 node1.update(settings);
-//			 node2.update(settings);
-			 
-			System.out.printf("%d -> %d\n",n.size(),resv.reduce(n, 0.00001).size() );
+			IUpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
+			node1.update(settings);
+			node2.update(settings);
+			Start();
+			resv.reduce(n, 0.00001);
+			System.out.printf("%d -> %d\n", n.size(), Stop() / 1000000);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	
-	List<Integer> N = Arrays.asList(new Integer[] { 10000, 40000, 160000 });
-	List<Integer> split_thresholds = Arrays.asList(new Integer[] {500, 2000, 8000});
-	List<Triplet<Integer,Integer,Integer>> lineSearchRatio = new ArrayList<DistributedTests.Triplet<Integer,Integer,Integer>>();
-	
+	int increment = 1000;
+	List<Integer> split_thresholds = Arrays.asList(new Integer[] { 16000, 64000, 128000 });
+	List<Triplet<Integer, Integer, Integer>> lineSearchRatio = new ArrayList<DistributedTests.Triplet<Integer, Integer, Integer>>();
+
 	@Test
 	public void HappyFlow() {
 		try {
 
 			RegistrationService resv = ProcessingRegistrar.connect();
 			IUpdatableNode node1 = ProcessingNode.connect("192.168.1.39");
-			 IUpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
+			// IUpdatableNode node2 = ProcessingNode.connect("192.168.1.250");
 
 			LocalDateTime now = LocalDateTime.now();
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd-mmss");
@@ -79,39 +79,60 @@ public class DistributedTests {
 			System.out.println(Paths.get(reportlocation).toAbsolutePath());
 			BufferedWriter writer = Files.newBufferedWriter(Paths.get(reportlocation));
 
-			CSVPrinter csvPrinter = new CSVPrinter(writer,
-					CSVFormat.DEFAULT.withHeader("split", "n",  "line_consumers", "line_searchers", "search_segments", "time_taken"));
+			CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("nodes", "split", "n",
+					"line_consumers", "line_searchers", "search_segments", "time_taken"));
+			int nodes = 1;
 
-			int samples = 20;
 			ConsumerLinesSettings settings = null;
-			for (Triplet< Integer, Integer, Triplet<Integer, Integer,Integer>> triple : testSetup()) {
-				// search, split, n, {consumer, searcher}
-				settings = new ConsumerLinesSettings();
-				settings.COMPUTATION_THRESHOLD_SIZESPLIT = triple.first;
-				settings.COMPUTATION_CONSUMERS = triple.third.first;
-				settings.COMPUTATION_SEARCHERS = triple.third.second;
-				settings.COMPUTATION_SEARCH_PARTS = triple.third.third;
+			for (int i = 256000; i >= 128000; i -= 12000) {
+				List<IndexedPoint> problem = create(i);
+				for (Tuple<Integer, Triplet<Integer, Integer, Integer>> setup : newTestSetup()) {
 
-				node1.update(settings);
-				node2.update(settings);
-				List<IndexedPoint> n = create(triple.second);
-				Thread.sleep(250);
+					settings = new ConsumerLinesSettings();
+					settings.COMPUTATION_THRESHOLD_SIZESPLIT = setup.first;
+					settings.COMPUTATION_CONSUMERS = setup.second.first;
+					settings.COMPUTATION_SEARCHERS = setup.second.second;
+					settings.COMPUTATION_SEARCH_PARTS = setup.second.third;
 
-				for (int i = 0; i < samples; i++) {
+					node1.update(settings);
+					// node2.update(settings);
+					// "nodes", "split", "n",
+					// "line_consumers", "line_searchers", "search_segments",
+					// "ns_time_taken"
 					Start();
-					List<IndexedPoint> result = resv.reduce(n, 0.01);
+					List<IndexedPoint> result = resv.reduce(problem, 0.01);
 					long time = Stop();
-					csvPrinter.printRecord( triple.first, triple.second,triple.third.first, triple.third.second, triple.third.third, time);
-					System.out.printf("%d %d %d %d %d %d \n",  triple.first, triple.second,triple.third.first, triple.third.second,triple.third.third, time);
+					csvPrinter.printRecord(nodes, setup.first, i, setup.second.first, setup.second.second,
+							setup.second.third, time);
+
+					System.out.printf(" %d %d %d %d %d %d %d \n", 2, setup.first, i, setup.second.first,
+							setup.second.second, setup.second.third, time);
 					csvPrinter.flush();
 				}
-
 			}
-			csvPrinter.flush();
+			csvPrinter.close();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	private List<Triplet<Integer, Integer, Integer>> createConsumerSets() {
+		lineSearchRatio.add(new Triplet<Integer, Integer, Integer>(2, 2, 3));
+		// lineSearchRatio.add(new Triplet<Integer, Integer, Integer>(1, 3, 4));
+		return lineSearchRatio;
+	}
+
+	// splitthreshold
+	private List<Tuple<Integer, Triplet<Integer, Integer, Integer>>> newTestSetup() {
+		List<Tuple<Integer, Triplet<Integer, Integer, Integer>>> values = new ArrayList<>();
+		for (Triplet<Integer, Integer, Integer> consumer : createConsumerSets()) {
+			for (Integer split : split_thresholds) {
+				values.add(new Tuple<Integer, Triplet<Integer, Integer, Integer>>(split, consumer));
+			}
+
+		}
+		return values;
 	}
 
 	// @Test
@@ -209,30 +230,6 @@ public class DistributedTests {
 		public V getThird() {
 			return third;
 		}
-	}
-
-	
-
-	private List<Triplet<Integer, Integer,Integer>> createConsumerSets() {
-		lineSearchRatio.add(new Triplet<Integer,Integer, Integer>(2, 2,4));
-		lineSearchRatio.add(new Triplet<Integer,Integer, Integer>(1, 3,4));
-		return lineSearchRatio;
-	}
-
-	private List<Triplet< Integer, Integer, Triplet<Integer, Integer,Integer>>> testSetup() {
-		List<Triplet< Integer, Integer, Triplet<Integer, Integer,Integer>>> cartesian = new ArrayList<>();
-		List<Triplet<Integer, Integer,Integer>> consumerset = createConsumerSets();
-		
-			for (Integer split : split_thresholds) {
-				for (Integer n : N) {
-					for (Triplet<Integer, Integer,Integer> tuple : consumerset) {
-						cartesian.add(
-								new Triplet< Integer, Integer, Triplet<Integer, Integer,Integer>>(split, n, tuple));
-					}
-				}
-			}
-		
-		return cartesian;
 	}
 
 	// @Test
